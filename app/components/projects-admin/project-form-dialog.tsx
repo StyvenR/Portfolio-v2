@@ -1,9 +1,13 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { ImageIcon, Loader2, X } from "lucide-react";
-import Image from "next/image";
-import { useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Loader2, X } from "lucide-react";
+import {
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import type { AdminProject, ProjectFormValues } from "./types";
 
 interface ProjectFormDialogProps {
@@ -136,7 +140,9 @@ function ProjectFormFields({
         github: values.github.trim(),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'enregistrement");
+      setError(
+        err instanceof Error ? err.message : "Erreur lors de l'enregistrement",
+      );
     }
   };
 
@@ -200,160 +206,146 @@ function ProjectFormFields({
       </div>
 
       <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
-              <Field label="Titre" required>
+        <Field label="Titre" required>
+          <input
+            type="text"
+            value={values.title}
+            onChange={(e) =>
+              setValues((v) => ({ ...v, title: e.target.value }))
+            }
+            className={INPUT_CLASS}
+            placeholder="PokeFlow"
+            required
+          />
+        </Field>
+
+        <Field label="Description" required>
+          <textarea
+            value={values.description}
+            onChange={(e) =>
+              setValues((v) => ({ ...v, description: e.target.value }))
+            }
+            className={`${INPUT_CLASS} min-h-[92px] resize-y`}
+            placeholder="Site d'e-commerce…"
+            required
+          />
+        </Field>
+
+        <Field label="Image" hint="Fichier recommandé">
+          <div className="space-y-3">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileChange}
+              disabled={isUploadingImage || isSaving}
+              className={`${INPUT_CLASS} file:mr-3 file:rounded-md file:border-0 file:bg-red-600 file:px-3 file:py-2 file:text-white file:cursor-pointer hover:file:bg-red-700 disabled:opacity-60`}
+            />
+
+            {isUploadingImage && (
+              <p className="inline-flex items-center gap-2 text-sm text-gray-400">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Upload en cours...
+              </p>
+            )}
+
+            <details className="rounded-md border border-red-600/20 bg-gray-900/40 px-3 py-2">
+              <summary className="cursor-pointer text-sm text-gray-300">
+                Ou coller une URL manuelle
+              </summary>
+              <div className="pt-2">
                 <input
                   type="text"
-                  value={values.title}
+                  value={values.image}
                   onChange={(e) =>
-                    setValues((v) => ({ ...v, title: e.target.value }))
+                    setValues((v) => ({ ...v, image: e.target.value }))
                   }
                   className={INPUT_CLASS}
-                  placeholder="PokeFlow"
-                  required
+                  placeholder="https://... ou URL Blob"
                 />
-              </Field>
-
-              <Field label="Description" required>
-                <textarea
-                  value={values.description}
-                  onChange={(e) =>
-                    setValues((v) => ({ ...v, description: e.target.value }))
-                  }
-                  className={`${INPUT_CLASS} min-h-[92px] resize-y`}
-                  placeholder="Site d'e-commerce…"
-                  required
-                />
-              </Field>
-
-              <Field label="Image" hint="Fichier recommandé">
-                <div className="space-y-3">
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={handleFileChange}
-                    disabled={isUploadingImage || isSaving}
-                    className={`${INPUT_CLASS} file:mr-3 file:rounded-md file:border-0 file:bg-red-600 file:px-3 file:py-2 file:text-white file:cursor-pointer hover:file:bg-red-700 disabled:opacity-60`}
-                  />
-
-                  {isUploadingImage && (
-                    <p className="inline-flex items-center gap-2 text-sm text-gray-400">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Upload en cours...
-                    </p>
-                  )}
-
-                  <details className="rounded-md border border-red-600/20 bg-gray-900/40 px-3 py-2">
-                    <summary className="cursor-pointer text-sm text-gray-300">
-                      Ou coller une URL manuelle
-                    </summary>
-                    <div className="pt-2">
-                      <input
-                        type="text"
-                        value={values.image}
-                        onChange={(e) =>
-                          setValues((v) => ({ ...v, image: e.target.value }))
-                        }
-                        className={INPUT_CLASS}
-                        placeholder="https://... ou URL Blob"
-                      />
-                    </div>
-                  </details>
-
-                  <div className="relative w-20 h-20 rounded-md border border-red-600/20 overflow-hidden bg-gray-900 shrink-0 flex items-center justify-center">
-                    {values.image ? (
-                      <Image
-                        src={values.image}
-                        alt="Preview"
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <ImageIcon className="w-6 h-6 text-gray-600" />
-                    )}
-                  </div>
-                </div>
-              </Field>
-
-              <Field label="Tags" hint="Entrée ou virgule pour ajouter">
-                <div className="flex flex-wrap gap-2 p-2 rounded-md bg-gray-900 border border-red-600/20 focus-within:border-red-600 focus-within:ring-2 focus-within:ring-red-600/20 transition-colors">
-                  {values.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-600/15 text-red-300 text-sm"
-                    >
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => removeTag(tag)}
-                        className="hover:text-red-100"
-                        aria-label={`Retirer ${tag}`}
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </span>
-                  ))}
-                  <input
-                    type="text"
-                    value={tagDraft}
-                    onChange={(e) => setTagDraft(e.target.value)}
-                    onKeyDown={handleTagKeyDown}
-                    onBlur={addTag}
-                    className="flex-1 min-w-[120px] bg-transparent outline-none text-white placeholder-gray-500"
-                    placeholder={values.tags.length === 0 ? "React, Tailwind…" : ""}
-                  />
-                </div>
-              </Field>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <Field label="Lien live (optionnel)">
-                  <input
-                    type="url"
-                    value={values.link}
-                    onChange={(e) =>
-                      setValues((v) => ({ ...v, link: e.target.value }))
-                    }
-                    className={INPUT_CLASS}
-                    placeholder="https://…"
-                  />
-                </Field>
-                <Field label="GitHub (optionnel)">
-                  <input
-                    type="url"
-                    value={values.github}
-                    onChange={(e) =>
-                      setValues((v) => ({ ...v, github: e.target.value }))
-                    }
-                    className={INPUT_CLASS}
-                    placeholder="https://github.com/…"
-                  />
-                </Field>
               </div>
+            </details>
+          </div>
+        </Field>
 
-              {error && (
-                <p className="text-sm text-red-400 bg-red-600/10 border border-red-600/30 rounded-md px-3 py-2">
-                  {error}
-                </p>
-              )}
-
-              <div className="flex justify-end gap-3 pt-2 border-t border-red-600/10">
+        <Field label="Tags" hint="Entrée ou virgule pour ajouter">
+          <div className="flex flex-wrap gap-2 p-2 rounded-md bg-gray-900 border border-red-600/20 focus-within:border-red-600 focus-within:ring-2 focus-within:ring-red-600/20 transition-colors">
+            {values.tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-600/15 text-red-300 text-sm"
+              >
+                {tag}
                 <button
                   type="button"
-                  onClick={onClose}
-                  disabled={isSaving}
-                  className="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+                  onClick={() => removeTag(tag)}
+                  className="hover:text-red-100"
+                  aria-label={`Retirer ${tag}`}
                 >
-                  Annuler
+                  <X className="w-3.5 h-3.5" />
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
-                >
-                  {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {project ? "Enregistrer" : "Créer"}
-                </button>
-              </div>
+              </span>
+            ))}
+            <input
+              type="text"
+              value={tagDraft}
+              onChange={(e) => setTagDraft(e.target.value)}
+              onKeyDown={handleTagKeyDown}
+              onBlur={addTag}
+              className="flex-1 min-w-[120px] bg-transparent outline-none text-white placeholder-gray-500"
+              placeholder={values.tags.length === 0 ? "React, Tailwind…" : ""}
+            />
+          </div>
+        </Field>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Field label="Lien live (optionnel)">
+            <input
+              type="url"
+              value={values.link}
+              onChange={(e) =>
+                setValues((v) => ({ ...v, link: e.target.value }))
+              }
+              className={INPUT_CLASS}
+              placeholder="https://…"
+            />
+          </Field>
+          <Field label="GitHub (optionnel)">
+            <input
+              type="url"
+              value={values.github}
+              onChange={(e) =>
+                setValues((v) => ({ ...v, github: e.target.value }))
+              }
+              className={INPUT_CLASS}
+              placeholder="https://github.com/…"
+            />
+          </Field>
+        </div>
+
+        {error && (
+          <p className="text-sm text-red-400 bg-red-600/10 border border-red-600/30 rounded-md px-3 py-2">
+            {error}
+          </p>
+        )}
+
+        <div className="flex justify-end gap-3 pt-2 border-t border-red-600/10">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+            className="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
+          >
+            {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {project ? "Enregistrer" : "Créer"}
+          </button>
+        </div>
       </form>
     </>
   );
