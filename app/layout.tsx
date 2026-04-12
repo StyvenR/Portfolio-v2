@@ -1,9 +1,15 @@
-import type { Metadata, Viewport } from "next";
 import { siteUrl } from "@/lib/site";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/assets/icon.png", type: "image/png", sizes: "512x512" }],
+    apple: [{ url: "/assets/icon.png", type: "image/png", sizes: "512x512" }],
+    shortcut: ["/assets/icon.png"],
+  },
   title: {
     default: "Styven Raya — Développeur Web Next.js & TypeScript",
     template: "%s | Styven Raya",
@@ -111,7 +117,11 @@ export default function RootLayout({
     <html lang="fr">
       <head>
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
-        <link rel="preconnect" href="https://cdn.simpleicons.org" crossOrigin="" />
+        <link
+          rel="preconnect"
+          href="https://cdn.simpleicons.org"
+          crossOrigin=""
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
