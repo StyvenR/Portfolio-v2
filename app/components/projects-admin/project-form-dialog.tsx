@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { ImageIcon, Loader2, Upload, X } from "lucide-react";
+import { ImageIcon, Loader2, X } from "lucide-react";
 import Image from "next/image";
 import { useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
 import type { AdminProject, ProjectFormValues } from "./types";
@@ -88,7 +88,6 @@ function ProjectFormFields({
   );
   const [tagDraft, setTagDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const addTag = () => {
@@ -141,18 +140,16 @@ function ProjectFormFields({
     }
   };
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    setSelectedImageFile(file);
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    await handleImageUpload(file);
+    event.target.value = "";
   };
 
-  const handleImageUpload = async () => {
+  const handleImageUpload = async (file: File) => {
     setError(null);
-
-    if (!selectedImageFile) {
-      setError("Sélectionne une image avant l'upload.");
-      return;
-    }
 
     const token = localStorage.getItem("auth_token");
     if (!token) {
@@ -163,7 +160,7 @@ function ProjectFormFields({
     setIsUploadingImage(true);
     try {
       const formData = new FormData();
-      formData.append("file", selectedImageFile);
+      formData.append("file", file);
 
       const response = await fetch("/api/admin/projects/upload", {
         method: "POST",
@@ -179,7 +176,6 @@ function ProjectFormFields({
       }
 
       setValues((current) => ({ ...current, image: data.url }));
-      setSelectedImageFile(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de l'upload");
     } finally {
@@ -229,39 +225,39 @@ function ProjectFormFields({
                 />
               </Field>
 
-              <Field label="Image" hint="Upload Blob ou URL manuelle">
+              <Field label="Image" hint="Fichier recommandé">
                 <div className="space-y-3">
-                  <div className="flex gap-3 items-start">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={handleFileChange}
-                      className={`${INPUT_CLASS} flex-1 file:mr-3 file:rounded-md file:border-0 file:bg-red-600 file:px-3 file:py-2 file:text-white file:cursor-pointer hover:file:bg-red-700`}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleImageUpload}
-                      disabled={!selectedImageFile || isUploadingImage || isSaving}
-                      className="inline-flex h-[42px] items-center gap-2 px-3 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
-                    >
-                      {isUploadingImage ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Upload className="w-4 h-4" />
-                      )}
-                      Upload
-                    </button>
-                  </div>
-
                   <input
-                    type="text"
-                    value={values.image}
-                    onChange={(e) =>
-                      setValues((v) => ({ ...v, image: e.target.value }))
-                    }
-                    className={INPUT_CLASS}
-                    placeholder="https://... ou URL Blob"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleFileChange}
+                    disabled={isUploadingImage || isSaving}
+                    className={`${INPUT_CLASS} file:mr-3 file:rounded-md file:border-0 file:bg-red-600 file:px-3 file:py-2 file:text-white file:cursor-pointer hover:file:bg-red-700 disabled:opacity-60`}
                   />
+
+                  {isUploadingImage && (
+                    <p className="inline-flex items-center gap-2 text-sm text-gray-400">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Upload en cours...
+                    </p>
+                  )}
+
+                  <details className="rounded-md border border-red-600/20 bg-gray-900/40 px-3 py-2">
+                    <summary className="cursor-pointer text-sm text-gray-300">
+                      Ou coller une URL manuelle
+                    </summary>
+                    <div className="pt-2">
+                      <input
+                        type="text"
+                        value={values.image}
+                        onChange={(e) =>
+                          setValues((v) => ({ ...v, image: e.target.value }))
+                        }
+                        className={INPUT_CLASS}
+                        placeholder="https://... ou URL Blob"
+                      />
+                    </div>
+                  </details>
 
                   <div className="relative w-20 h-20 rounded-md border border-red-600/20 overflow-hidden bg-gray-900 shrink-0 flex items-center justify-center">
                     {values.image ? (
