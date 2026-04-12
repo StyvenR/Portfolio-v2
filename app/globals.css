@@ -121,25 +121,3 @@
     @apply bg-background text-foreground;
   }
 }
-
-/* Section projets : fond bitume + grille (même rendu que l’ancien inline page.tsx) */
-@layer utilities {
-  .bg-projects-bitume {
-    background-image:
-      linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%),
-      repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgb(255 255 255 / 0.03) 2px,
-        rgb(255 255 255 / 0.03) 4px
-      ),
-      repeating-linear-gradient(
-        90deg,
-        transparent,
-        transparent 2px,
-        rgb(255 255 255 / 0.03) 2px,
-        rgb(255 255 255 / 0.03) 4px
-      );
-  }
-}

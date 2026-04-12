@@ -7,17 +7,17 @@ import {
   ModalContent,
   ModalTrigger,
 } from "@/components/ui/shadcn-io/animated-modal";
-import {
-  PLACEHOLDER_IMAGE,
-  type Project,
-  projects as fallbackProjects,
-} from "@/utils/my_project";
-import { MotionValue, motion, useScroll, useTransform } from "motion/react";
-import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
 import { useCheckerboardColumns } from "@/hooks/useCheckerboardColumns";
 import { useIsInViewport } from "@/hooks/useIsInViewport";
 import { useScrollSnap } from "@/hooks/useScrollSnap";
+import {
+  PLACEHOLDER_IMAGE,
+  projects as fallbackProjects,
+  type Project,
+} from "@/utils/my_project";
+import { motion, useScroll, useTransform } from "motion/react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(false);
@@ -30,78 +30,215 @@ function useIsMobile(breakpoint = 768) {
   return isMobile;
 }
 
-function useProject(value: MotionValue<number>, distance: number) {
-  return useTransform(value, [0, 1], [-distance, distance]);
-}
-
-function ProjectImage({
+function PitBoard({
   project,
   position,
+  total,
 }: {
   project: Project;
   position: number;
+  total: number;
 }) {
-  const ref = useRef(null);
+  const ref = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const { scrollYProgress } = useScroll({ target: ref });
-  const y = useProject(scrollYProgress, isMobile ? 100 : 300);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  });
+  const fill = useTransform(scrollYProgress, [0.2, 0.6], [0, 1]);
+  const perfPct = useTransform(fill, (v) => `${Math.round(v * 87)}%`);
 
-  const isOdd = position % 2 === 1;
-  const offsetX = isMobile ? 0 : isOdd ? -200 : 200;
-  const numberOffsetX = isMobile ? 0 : isOdd ? 200 : -200;
+  const lap = String(position).padStart(2, "0");
+  const laps = String(total).padStart(2, "0");
 
   return (
     <Modal>
-      <section className="h-screen snap-start flex justify-center items-center relative overflow-hidden">
-        {/* Transition fade-in depuis le haut */}
+      <section className="h-screen snap-start flex justify-center items-center relative overflow-hidden bg-black">
+        {/* scanlines overlay F1 broadcast */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.08] z-0"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 3px)",
+          }}
+        />
+
         <motion.div
-          initial={{ opacity: 0, y: -50 }}
+          ref={ref}
+          initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: false, amount: 0.3 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="absolute inset-0 flex items-center justify-center"
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="relative z-10 w-[92vw] max-w-[1100px] border-2 border-red-600 bg-black/90 font-mono shadow-[0_0_40px_rgba(220,38,38,0.25)]"
         >
-          {/* Starting block - délimitations */}
-          <motion.div
-            className="relative border-4 border-black  rounded-lg p-2  z-10 hover:scale-105 transition-transform duration-300"
-            style={{ x: offsetX }}
-          >
-            {/* Lignes de délimitation du starting block */}
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-[120%] h-1 bg-white rounded-full pointer-events-none" />
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-[120%] h-1 bg-white rounded-full pointer-events-none" />
-            <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-[120%] bg-white rounded-full pointer-events-none" />
-            <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-1 h-[120%] bg-white rounded-full pointer-events-none" />
+          {/* Header pit board */}
+          <div className="flex items-center justify-between border-b-2 border-red-600 bg-red-600 text-black px-3 py-1.5 text-[11px] sm:text-sm font-black tracking-widest uppercase">
+            <span>P{position}</span>
+            <span className="hidden sm:inline">
+              LAP {lap}/{laps}
+            </span>
+            <span className="flex items-center gap-2">
+              <motion.span
+                animate={{ opacity: [1, 0.2, 1] }}
+                transition={{ duration: 1.2, repeat: Infinity }}
+                className="w-2 h-2 rounded-full bg-black"
+              />
+              REC
+            </span>
+          </div>
 
-            {/* Numéro de position F1 (P1, P2, etc.) */}
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none">
-              <span className="text-white font-black text-2xl font-mono">
-                P{position}
-              </span>
-            </div>
-
-            <ModalTrigger className="w-full h-full cursor-pointer bg-transparent border-none p-0">
-              <div
-                ref={ref}
-                className="w-[200px] h-[280px] sm:w-[220px] sm:h-[300px] md:w-[300px] md:h-[400px] bg-gray-100 overflow-hidden relative border-2 border-white/20"
-              >
-                <Image
-                  src={project.image || PLACEHOLDER_IMAGE}
-                  alt={project.title}
-                  width={300}
-                  height={400}
-                  className="w-full h-full object-cover"
-                />
+          {/* Body split */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+            {/* Image écran télémétrie */}
+            <ModalTrigger className="group relative block w-full aspect-4/3 md:aspect-auto md:h-[360px] overflow-hidden border-b-2 md:border-b-0 md:border-r-2 border-red-600 bg-neutral-900 cursor-pointer p-0">
+              {/* coins style HUD */}
+              <div className="absolute top-1 left-1 w-4 h-4 border-t-2 border-l-2 border-red-500 z-10" />
+              <div className="absolute top-1 right-1 w-4 h-4 border-t-2 border-r-2 border-red-500 z-10" />
+              <div className="absolute bottom-1 left-1 w-4 h-4 border-b-2 border-l-2 border-red-500 z-10" />
+              <div className="absolute bottom-1 right-1 w-4 h-4 border-b-2 border-r-2 border-red-500 z-10" />
+              <Image
+                src={project.image || PLACEHOLDER_IMAGE}
+                alt={project.title}
+                fill
+                sizes="(max-width: 768px) 92vw, 550px"
+                className="object-contain object-center p-4 group-hover:scale-[1.03] transition-transform duration-500"
+              />
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/80 border border-red-600 text-[10px] text-red-500 tracking-widest z-10">
+                ONBOARD CAM
               </div>
             </ModalTrigger>
-          </motion.div>
+
+            {/* Data panel */}
+            <div className="p-4 md:p-6 flex flex-col gap-4 text-white">
+              <div>
+                <h2 className="text-2xl md:text-4xl font-black text-red-600 leading-none">
+                  # {project.title}
+                </h2>
+              </div>
+
+              <div>
+                <div className="flex flex-wrap gap-1.5">
+                  {project.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-2 py-0.5 border border-red-600/60 text-red-400 text-[10px] sm:text-xs tracking-wide uppercase"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Télémétrie — RPM gauge + LED cluster */}
+              <div className="grid grid-cols-5 gap-3 items-center">
+                {/* Jauge RPM semi-circulaire */}
+                <div className="col-span-2 relative aspect-square max-w-[160px]">
+                  <svg
+                    viewBox="0 0 120 120"
+                    className="w-full h-full -rotate-90"
+                  >
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="50"
+                      fill="none"
+                      stroke="#262626"
+                      strokeWidth="8"
+                    />
+                    <motion.circle
+                      cx="60"
+                      cy="60"
+                      r="50"
+                      fill="none"
+                      stroke="#dc2626"
+                      strokeWidth="8"
+                      strokeLinecap="butt"
+                      strokeDasharray="314"
+                      style={{
+                        strokeDashoffset: useTransform(
+                          fill,
+                          (v) => 314 - v * 0.87 * 314,
+                        ),
+                      }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <motion.span className="text-2xl md:text-3xl font-black text-red-500 leading-none">
+                      {perfPct}
+                    </motion.span>
+                    <span className="text-[9px] tracking-[0.3em] text-neutral-500 mt-1">
+                      PERF
+                    </span>
+                  </div>
+                </div>
+
+                {/* LED cluster */}
+                <div className="col-span-3 space-y-2 text-[10px] tracking-widest">
+                  <div className="flex items-center justify-between border-b border-red-600/20 pb-1.5">
+                    <span className="text-neutral-500">STATUS</span>
+                    <span className="flex items-center gap-1.5 text-green-500">
+                      <motion.span
+                        animate={{ opacity: [1, 0.3, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                        className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_6px_#22c55e]"
+                      />
+                      LIVE
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-red-600/20 pb-1.5">
+                    <span className="text-neutral-500">LAP</span>
+                    <span className="text-white">
+                      {lap}/{laps}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-red-600/20 pb-1.5">
+                    <span className="text-neutral-500">SECTOR</span>
+                    <span className="flex gap-1">
+                      {(() => {
+                        const PALETTE = [
+                          "bg-purple-500 shadow-[0_0_6px_#a855f7]",
+                          "bg-green-500 shadow-[0_0_6px_#22c55e]",
+                          "bg-yellow-400 shadow-[0_0_6px_#facc15]",
+                          "bg-red-500 shadow-[0_0_6px_#ef4444]",
+                        ];
+                        const MIX: Record<number, number[]> = {
+                          1: [0, 0, 0],
+                          2: [0, 1, 1],
+                          3: [1, 1, 2],
+                          4: [1, 2, 2],
+                          5: [2, 2, 3],
+                          6: [2, 3, 3],
+                        };
+                        const pattern = MIX[position] ?? [3, 3, 3];
+                        return pattern.map((p, i) => (
+                          <span key={i} className={`w-4 h-1.5 ${PALETTE[p]}`} />
+                        ));
+                      })()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-neutral-500">POS</span>
+                    <span className="text-red-500 font-black text-base leading-none">
+                      {(position % 8).toString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-auto flex items-center gap-2 pt-2 border-t border-red-600/30 text-[10px] tracking-widest text-neutral-500">
+                <span className="text-red-500">◉</span>
+                <span>TAP ONBOARD CAM → VIEW TEAM RADIO</span>
+              </div>
+            </div>
+          </div>
         </motion.div>
 
-        <motion.h2
-          initial={{ visibility: "hidden" }}
-          animate={{ visibility: "visible" }}
-          style={{ y, x: numberOffsetX }}
-          className="text-red-600 m-0 font-mono text-[28px] sm:text-[36px] md:text-[50px] font-bold tracking-[-2px] md:tracking-[-3px] leading-tight absolute inline-block top-[calc(50%-25px)] left-1/2 -translate-x-1/2 z-20 max-w-[90vw] text-center"
-        >{`# ${project.title}`}</motion.h2>
+        {/* Titre latéral décoratif (desktop) */}
+        {!isMobile && (
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 -rotate-90 origin-left text-red-600/30 font-mono text-xs tracking-[0.5em] pointer-events-none">
+            SECTOR {position} — {project.title.toUpperCase()}
+          </div>
+        )}
 
         {/* Modal avec contenu du projet */}
         <ModalBody>
@@ -116,58 +253,93 @@ function ProjectImage({
             className="flex-1 flex flex-col min-h-0"
           >
             <ModalContent>
-              <div className="space-y-6">
-                <div className="relative w-full h-40 sm:h-52 md:h-64 mb-4 md:mb-6 rounded-lg overflow-hidden">
+              <div className="font-mono text-white">
+                {/* Broadcast header */}
+                <div className="flex items-center justify-between border-b-2 border-red-600 bg-red-600 text-black px-3 py-1.5 text-[11px] sm:text-sm font-black tracking-widest uppercase -mx-6 -mt-6 mb-4">
+                  <span>P{position} — TEAM RADIO</span>
+                  <span className="flex items-center gap-2">
+                    <motion.span
+                      animate={{ opacity: [1, 0.2, 1] }}
+                      transition={{ duration: 1.2, repeat: Infinity }}
+                      className="w-2 h-2 rounded-full bg-black"
+                    />
+                    ON AIR
+                  </span>
+                </div>
+
+                {/* Image centrée avec HUD */}
+                <div className="relative w-full h-48 sm:h-64 md:h-72 mb-5 overflow-hidden bg-neutral-900 border border-red-600/60 flex items-center justify-center">
+                  <div className="absolute top-1 left-1 w-4 h-4 border-t-2 border-l-2 border-red-500 z-10" />
+                  <div className="absolute top-1 right-1 w-4 h-4 border-t-2 border-r-2 border-red-500 z-10" />
+                  <div className="absolute bottom-1 left-1 w-4 h-4 border-b-2 border-l-2 border-red-500 z-10" />
+                  <div className="absolute bottom-1 right-1 w-4 h-4 border-b-2 border-r-2 border-red-500 z-10" />
                   <Image
                     src={project.image || PLACEHOLDER_IMAGE}
                     alt={project.title}
-                    width={800}
-                    height={400}
-                    className="w-full h-full object-cover"
+                    width={1200}
+                    height={700}
+                    className="max-w-full max-h-full w-auto h-auto object-contain"
                   />
+                  <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/80 border border-red-600 text-[10px] text-red-500 tracking-widest z-10">
+                    REPLAY — {project.title.toUpperCase()}
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-2xl md:text-3xl font-bold mb-3 md:mb-4 text-red-600">
-                    {project.title}
+
+                {/* Title + desc */}
+                <div className="mb-5">
+                  <div className="text-[10px] text-red-500 tracking-[0.3em] mb-1">
+                    {"// BRIEFING"}
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-black text-red-600 mb-3">
+                    # {project.title}
                   </h2>
-                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                  <p className="text-neutral-300 text-sm md:text-base leading-relaxed">
                     {project.description}
                   </p>
-                  <div className="flex gap-2 flex-wrap">
+                </div>
+
+                {/* Stack */}
+                <div className="mb-5">
+                  <div className="text-[10px] text-red-500 tracking-[0.3em] mb-2">
+                    {"// STACK"}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
                     {project.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="px-3 py-1 bg-red-600/10 text-red-600 rounded-full text-sm"
+                        className="px-2 py-0.5 border border-red-600/60 text-red-400 text-[10px] sm:text-xs tracking-wide uppercase"
                       >
                         {tag}
                       </span>
                     ))}
                   </div>
-                  {(project.link || project.github) && (
-                    <div className="mt-6 flex gap-4">
-                      {project.link && (
-                        <a
-                          href={project.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                        >
-                          Voir le projet
-                        </a>
-                      )}
-                      {project.github && (
-                        <a
-                          href={project.github}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                        >
-                          GitHub
-                        </a>
-                      )}
-                    </div>
-                  )}
                 </div>
+
+                {/* Actions */}
+                {(project.link || project.github) && (
+                  <div className="pt-4 border-t border-red-600/30 flex flex-wrap gap-3">
+                    {project.link && project.link !== "blank" && (
+                      <a
+                        href={project.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 bg-red-600 hover:bg-red-500 text-black font-black text-xs tracking-widest uppercase transition-colors"
+                      >
+                        ◉ LIVE RUN
+                      </a>
+                    )}
+                    {project.github && (
+                      <a
+                        href={project.github}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 border border-red-600 text-red-500 hover:bg-red-600 hover:text-black font-black text-xs tracking-widest uppercase transition-colors"
+                      >
+                        ⌥ GITHUB
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             </ModalContent>
           </BorderGlow>
@@ -216,9 +388,6 @@ function FinishLine() {
           {squares}
         </div>
       </div>
-      <div className="absolute inset-0 flex items-center justify-center z-10">
-        <div className="text-7xl md:text-9xl font-black text-white" />
-      </div>
     </section>
   );
 }
@@ -261,10 +430,11 @@ export default function Project() {
     >
       <FinishLine />
       {projects.map((project, index) => (
-        <ProjectImage
+        <PitBoard
           key={project.id}
           project={project}
           position={index + 1}
+          total={projects.length}
         />
       ))}
     </div>
