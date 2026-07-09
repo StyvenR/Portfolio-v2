@@ -59,14 +59,13 @@ export default function About() {
             </p>
             <div className="pt-2 flex flex-wrap justify-center gap-2 w-full">
               <motion.a
-                href="#"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/assets/CV_STYVEN_RAYA.pdf"
+                download="CV_Styven_Raya.pdf"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="inline-flex items-center justify-center px-5 py-2.5 md:px-6 md:py-3 bg-red-600 text-white text-sm md:text-base font-bold tracking-wide hover:bg-red-700 transition-colors border-2 border-red-600 rounded-lg"
               >
-                VOIR MON CV
+                TELECHARGER MON CV
               </motion.a>
               <motion.a
                 href="https://www.linkedin.com/in/styven-raya-ab5312302/"
