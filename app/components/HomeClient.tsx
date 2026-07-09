@@ -4,12 +4,23 @@ import { hyperspeedPresets } from "@/components/ui/hyperspeed-background/HyperSp
 import Hyperspeed from "@/components/ui/hyperspeed-background/Hyperspeed";
 import LogoLoop from "@/components/ui/logo-loop/LogoLoop";
 import { motion } from "motion/react";
+import { Menu, X } from "lucide-react";
+import { useState } from "react";
 import About from "./About";
 import Competences from "./Competences";
 import Contact from "./Contact";
 import Project from "./Projet";
 
+const NAV_LINKS = [
+  { href: "#projets", label: "Projets" },
+  { href: "#competences", label: "Compétences" },
+  { href: "#a-propos", label: "À propos" },
+  { href: "#contact", label: "Contact" },
+];
+
 export default function HomeClient() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
       <header
@@ -31,42 +42,49 @@ export default function HomeClient() {
           <motion.ul
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex gap-4 md:gap-8 text-xs md:text-sm font-medium"
+            className="hidden md:flex md:gap-8 text-sm font-medium"
           >
-            <li>
-              <a
-                href="#projets"
-                className="hover:text-red-600 transition-colors cursor-pointer"
-              >
-                Projets
-              </a>
-            </li>
-            <li>
-              <a
-                href="#competences"
-                className="hover:text-red-600 transition-colors cursor-pointer"
-              >
-                Compétences
-              </a>
-            </li>
-            <li>
-              <a
-                href="#a-propos"
-                className="hover:text-red-600 transition-colors cursor-pointer"
-              >
-                À propos
-              </a>
-            </li>
-            <li>
-              <a
-                href="#contact"
-                className="hover:text-red-600 transition-colors cursor-pointer"
-              >
-                Contact
-              </a>
-            </li>
+            {NAV_LINKS.map((link) => (
+              <li key={link.href}>
+                <a
+                  href={link.href}
+                  className="hover:text-red-600 transition-colors cursor-pointer"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
           </motion.ul>
+
+          <button
+            type="button"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Menu"
+            aria-expanded={menuOpen}
+            className="md:hidden -mr-2 p-2 hover:text-red-600 transition-colors"
+          >
+            {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </nav>
+
+        {menuOpen && (
+          <ul
+            id="mobile-menu"
+            className="md:hidden px-4 pb-2 border-t border-red-600/20 bg-black/95"
+          >
+            {NAV_LINKS.map((link) => (
+              <li key={link.href}>
+                <a
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="block py-4 text-base font-medium border-b border-white/5 last:border-b-0 hover:text-red-600 transition-colors"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
       </header>
 
       <main id="main">
