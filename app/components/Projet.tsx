@@ -46,8 +46,9 @@ function PitBoard({
     target: ref,
     offset: ["start end", "end start"],
   });
-  const fill = useTransform(scrollYProgress, [0.2, 0.6], [0, 1]);
-  const perfPct = useTransform(fill, (v) => `${Math.round(v * 87)}%`);
+  // 0.5 = section centrée dans le viewport → jauge pleine.
+  const fill = useTransform(scrollYProgress, [0.2, 0.5], [0, 1]);
+  const perfPct = useTransform(fill, (v) => `${Math.round(v * 100)}%`);
 
   const lap = String(position).padStart(2, "0");
   const laps = String(total).padStart(2, "0");
@@ -158,7 +159,7 @@ function PitBoard({
                       style={{
                         strokeDashoffset: useTransform(
                           fill,
-                          (v) => 314 - v * 0.87 * 314,
+                          (v) => 314 - v * 314,
                         ),
                       }}
                     />
