@@ -1,5 +1,9 @@
 import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
 import { prisma } from "@/lib/prisma";
+import {
+  InvalidCompetenceError,
+  parseCompetencesInput,
+} from "@/lib/project-competences";
 import { NextRequest, NextResponse } from "next/server";
 
 function requireAuth(request: NextRequest) {
@@ -8,6 +12,13 @@ function requireAuth(request: NextRequest) {
   return verifyToken(token);
 }
 
+const COMPETENCES_INCLUDE = {
+  competences: {
+    select: { code: true, evidence: true },
+    orderBy: { code: "asc" },
+  },
+} as const;
+
 export async function GET(request: NextRequest) {
   if (!requireAuth(request)) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
@@ -15,6 +26,7 @@ export async function GET(request: NextRequest) {
   try {
     const projects = await prisma.project.findMany({
       orderBy: { order: "asc" },
+      include: COMPETENCES_INCLUDE,
     });
     return NextResponse.json({ projects });
   } catch (error) {
@@ -30,6 +42,7 @@ interface CreateProjectBody {
   tags?: string[];
   link?: string | null;
   github?: string | null;
+  competences?: unknown;
 }
 
 export async function POST(request: NextRequest) {
@@ -47,6 +60,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const competences =
+      body.competences === undefined
+        ? []
+        : parseCompetencesInput(body.competences);
+
     const last = await prisma.project.findFirst({
       orderBy: { order: "desc" },
       select: { order: true },
@@ -62,11 +80,16 @@ export async function POST(request: NextRequest) {
         link: link || null,
         github: github || null,
         order: nextOrder,
+        competences: { create: competences },
       },
+      include: COMPETENCES_INCLUDE,
     });
 
     return NextResponse.json({ project }, { status: 201 });
   } catch (error) {
+    if (error instanceof InvalidCompetenceError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error("POST /admin/projects:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }

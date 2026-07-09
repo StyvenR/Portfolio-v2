@@ -1,7 +1,7 @@
 "use client";
 
 import { SubmissionsDataTable } from "@/app/components/submissions-data-table";
-import { FolderKanban, Home, LogOut, Search } from "lucide-react";
+import { FolderKanban, Home, ListChecks, LogOut, Search } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -142,6 +142,15 @@ export default function AdminDashboard() {
               >
                 <FolderKanban className="w-4 h-4" />
                 <span className="text-white">Projets</span>
+              </Link>
+            </div>
+            <div>
+              <Link
+                href="/admin/competences"
+                className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/30 rounded-lg transition-colors"
+              >
+                <ListChecks className="w-4 h-4" />
+                <span className="text-white">Compétences</span>
               </Link>
             </div>
             <div>

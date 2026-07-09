@@ -33,7 +33,25 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  competences ProjectCompetence[]
+
   @@index([order])
+}
+
+/// Lien projet <-> compétence du référentiel. Le référentiel lui-même
+/// (activités A1-A7, blocs C1/C2/C3) vit dans utils/competences.ts :
+/// `code` référence une compétence de ALL_COMPETENCES, ex. "C2.4".
+model ProjectCompetence {
+  id        String   @id @default(cuid())
+  projectId String
+  code      String
+  evidence  String?  @db.Text
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, code])
+  @@index([code])
 }
 
 model User {
