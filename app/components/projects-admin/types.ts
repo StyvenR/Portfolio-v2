@@ -1,3 +1,8 @@
+export interface ProjectCompetenceLink {
+  code: string;
+  evidence: string | null;
+}
+
 export interface AdminProject {
   id: string;
   title: string;
@@ -7,6 +12,7 @@ export interface AdminProject {
   link: string | null;
   github: string | null;
   order: number;
+  competences: ProjectCompetenceLink[];
   createdAt: string;
   updatedAt: string;
 }
@@ -18,4 +24,5 @@ export interface ProjectFormValues {
   tags: string[];
   link: string;
   github: string;
+  competences: ProjectCompetenceLink[];
 }

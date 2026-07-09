@@ -6,7 +6,7 @@ import type {
   AdminProject,
   ProjectFormValues,
 } from "@/app/components/projects-admin/types";
-import { Home, LogOut, MessageSquare, Plus } from "lucide-react";
+import { Home, ListChecks, LogOut, MessageSquare, Plus } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -117,6 +117,7 @@ export default function AdminProjectsPage() {
           tags: values.tags,
           link: values.link || null,
           github: values.github || null,
+          competences: values.competences,
         }),
       });
 
@@ -171,6 +172,13 @@ export default function AdminProjectsPage() {
             </p>
           </div>
           <div className="flex gap-3">
+            <Link
+              href="/admin/competences"
+              className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/30 rounded-lg transition-colors"
+            >
+              <ListChecks className="w-4 h-4" />
+              <span className="text-white">Compétences</span>
+            </Link>
             <Link
               href="/admin"
               className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/30 rounded-lg transition-colors"

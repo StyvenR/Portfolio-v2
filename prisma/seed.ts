@@ -5,7 +5,8 @@ import { config } from "dotenv";
 import pkg from "pg";
 import { projects as fallbackProjects } from "../utils/my_project";
 
-config();
+// Même précédence que Next.js et prisma.config.ts : `.env.local` gagne sur `.env`.
+config({ path: [".env.local", ".env"] });
 
 const { Pool } = pkg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });

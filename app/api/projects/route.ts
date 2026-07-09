@@ -5,6 +5,12 @@ export async function GET() {
   try {
     const projects = await prisma.project.findMany({
       orderBy: { order: "asc" },
+      include: {
+        competences: {
+          select: { code: true, evidence: true },
+          orderBy: { code: "asc" },
+        },
+      },
     });
     return NextResponse.json({ projects });
   } catch (error) {

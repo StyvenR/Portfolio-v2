@@ -1,5 +1,10 @@
 export const PLACEHOLDER_IMAGE = "/assets/placeholder.jpg";
 
+export interface ProjectCompetenceLink {
+  code: string;
+  evidence: string | null;
+}
+
 export interface Project {
   id: string | number;
   title: string;
@@ -8,6 +13,7 @@ export interface Project {
   tags: string[];
   link?: string | null;
   github?: string | null;
+  competences?: ProjectCompetenceLink[];
 }
 
 export const projects: Project[] = [

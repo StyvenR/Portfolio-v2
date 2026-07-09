@@ -8,6 +8,7 @@ import {
   ModalTrigger,
 } from "@/components/ui/shadcn-io/animated-modal";
 import { useCheckerboardColumns } from "@/hooks/useCheckerboardColumns";
+import { COMPETENCES_BY_CODE } from "@/utils/competences";
 import { useIsInViewport } from "@/hooks/useIsInViewport";
 import { useScrollSnap } from "@/hooks/useScrollSnap";
 import {
@@ -45,8 +46,9 @@ function PitBoard({
     target: ref,
     offset: ["start end", "end start"],
   });
-  const fill = useTransform(scrollYProgress, [0.2, 0.6], [0, 1]);
-  const perfPct = useTransform(fill, (v) => `${Math.round(v * 87)}%`);
+  // 0.5 = section centrée dans le viewport → jauge pleine.
+  const fill = useTransform(scrollYProgress, [0.2, 0.5], [0, 1]);
+  const perfPct = useTransform(fill, (v) => `${Math.round(v * 100)}%`);
 
   const lap = String(position).padStart(2, "0");
   const laps = String(total).padStart(2, "0");
@@ -157,7 +159,7 @@ function PitBoard({
                       style={{
                         strokeDashoffset: useTransform(
                           fill,
-                          (v) => 314 - v * 0.87 * 314,
+                          (v) => 314 - v * 314,
                         ),
                       }}
                     />
@@ -314,6 +316,27 @@ function PitBoard({
                     ))}
                   </div>
                 </div>
+
+                {/* Compétences du référentiel validées par ce projet */}
+                {project.competences && project.competences.length > 0 && (
+                  <div className="mb-5">
+                    <div className="text-[10px] text-red-500 tracking-[0.3em] mb-2">
+                      {"// COMPÉTENCES VALIDÉES"}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {project.competences.map(({ code }) => (
+                        <a
+                          key={code}
+                          href="#competences"
+                          title={COMPETENCES_BY_CODE[code]?.label}
+                          className="px-2 py-0.5 border border-green-600/60 text-green-400 hover:bg-green-600 hover:text-black text-[10px] sm:text-xs tracking-wide uppercase transition-colors"
+                        >
+                          {code}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Actions */}
                 {(project.link || project.github) && (
