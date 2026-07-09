@@ -70,7 +70,19 @@ export function SortableProjectCard({
       </div>
 
       <div className="flex-1 min-w-0">
-        <h3 className="text-white font-semibold truncate">{project.title}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-white font-semibold truncate">{project.title}</h3>
+          <span
+            title={`${project.competences.length} compétence(s) rattachée(s)`}
+            className={`shrink-0 px-2 py-0.5 rounded-full font-mono text-[10px] ${
+              project.competences.length > 0
+                ? "bg-green-600/15 text-green-400"
+                : "bg-yellow-400/10 text-yellow-500"
+            }`}
+          >
+            {project.competences.length} CMP
+          </span>
+        </div>
         <p className="text-sm text-gray-400 line-clamp-2 mt-0.5">
           {project.description}
         </p>

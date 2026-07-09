@@ -5,6 +5,7 @@ import Hyperspeed from "@/components/ui/hyperspeed-background/Hyperspeed";
 import LogoLoop from "@/components/ui/logo-loop/LogoLoop";
 import { motion } from "motion/react";
 import About from "./About";
+import Competences from "./Competences";
 import Contact from "./Contact";
 import Project from "./Projet";
 
@@ -38,6 +39,14 @@ export default function HomeClient() {
                 className="hover:text-red-600 transition-colors cursor-pointer"
               >
                 Projets
+              </a>
+            </li>
+            <li>
+              <a
+                href="#competences"
+                className="hover:text-red-600 transition-colors cursor-pointer"
+              >
+                Compétences
               </a>
             </li>
             <li>
@@ -253,6 +262,8 @@ export default function HomeClient() {
             ariaLabel="Technologies utilisées"
           />
         </section>
+
+        <Competences />
 
         <About />
 

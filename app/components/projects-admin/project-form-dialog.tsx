@@ -1,5 +1,6 @@
 "use client";
 
+import { TOTAL_COMPETENCES } from "@/utils/competences";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, X } from "lucide-react";
 import {
@@ -8,6 +9,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
+import { CompetencesPicker } from "./competences-picker";
 import type { AdminProject, ProjectFormValues } from "./types";
 
 interface ProjectFormDialogProps {
@@ -28,6 +30,7 @@ const EMPTY_VALUES: ProjectFormValues = {
   tags: [],
   link: "",
   github: "",
+  competences: [],
 };
 
 function initialFormValues(project: AdminProject | null): ProjectFormValues {
@@ -39,6 +42,7 @@ function initialFormValues(project: AdminProject | null): ProjectFormValues {
     tags: [...project.tags],
     link: project.link ?? "",
     github: project.github ?? "",
+    competences: project.competences.map((c) => ({ ...c })),
   };
 }
 
@@ -297,6 +301,19 @@ function ProjectFormFields({
           </div>
         </Field>
 
+        <Field
+          asGroup
+          label="Compétences du référentiel"
+          hint={`${values.competences.length}/${TOTAL_COMPETENCES} rattachées`}
+        >
+          <CompetencesPicker
+            value={values.competences}
+            onChange={(competences) =>
+              setValues((v) => ({ ...v, competences }))
+            }
+          />
+        </Field>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <Field label="Lien live (optionnel)">
             <input
@@ -355,22 +372,39 @@ function Field({
   label,
   required,
   hint,
+  asGroup,
   children,
 }: {
   label: string;
   required?: boolean;
   hint?: string;
+  /** Rend un <div> au lieu d'un <label> : à utiliser dès que les enfants
+   *  contiennent eux-mêmes des <label> (cases à cocher, radios…). */
+  asGroup?: boolean;
   children: React.ReactNode;
 }) {
+  const header = (
+    <div className="flex items-baseline justify-between">
+      <span className="text-sm font-medium text-gray-200">
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+      </span>
+      {hint && <span className="text-xs text-gray-500">{hint}</span>}
+    </div>
+  );
+
+  if (asGroup) {
+    return (
+      <div role="group" aria-label={label} className="block space-y-1.5">
+        {header}
+        {children}
+      </div>
+    );
+  }
+
   return (
     <label className="block space-y-1.5">
-      <div className="flex items-baseline justify-between">
-        <span className="text-sm font-medium text-gray-200">
-          {label}
-          {required && <span className="text-red-500 ml-0.5">*</span>}
-        </span>
-        {hint && <span className="text-xs text-gray-500">{hint}</span>}
-      </div>
+      {header}
       {children}
     </label>
   );
