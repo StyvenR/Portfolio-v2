@@ -11,11 +11,13 @@ import { useCheckerboardColumns } from "@/hooks/useCheckerboardColumns";
 import { COMPETENCES_BY_CODE } from "@/utils/competences";
 import { useIsInViewport } from "@/hooks/useIsInViewport";
 import { useScrollSnap } from "@/hooks/useScrollSnap";
+import { useSectionNav } from "@/hooks/useSectionNav";
 import {
   PLACEHOLDER_IMAGE,
   projects as fallbackProjects,
   type Project,
 } from "@/utils/my_project";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { motion, useScroll, useTransform } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
@@ -55,7 +57,10 @@ function PitBoard({
 
   return (
     <Modal>
-      <section className="h-screen snap-start flex justify-center items-center relative overflow-hidden bg-black">
+      <section
+        data-project-section
+        className="h-screen snap-start flex justify-center items-center relative overflow-hidden bg-black"
+      >
         {/* scanlines overlay F1 broadcast */}
         <div
           className="absolute inset-0 pointer-events-none opacity-[0.08] z-0"
@@ -372,6 +377,73 @@ function PitBoard({
   );
 }
 
+function NavArrow({
+  direction,
+  disabled,
+  onClick,
+}: {
+  direction: "up" | "down";
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const Icon = direction === "up" ? ChevronUp : ChevronDown;
+
+  return (
+    <button
+      type="button"
+      aria-disabled={disabled}
+      onClick={() => {
+        if (!disabled) onClick();
+      }}
+      aria-label={direction === "up" ? "Projet précédent" : "Projet suivant"}
+      className="flex h-11 w-11 items-center justify-center border-2 border-red-600 bg-black/80 text-red-500 backdrop-blur-sm transition-colors hover:bg-red-600 hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 aria-disabled:cursor-not-allowed aria-disabled:border-neutral-700 aria-disabled:bg-black/50 aria-disabled:text-neutral-700 aria-disabled:hover:bg-black/50 aria-disabled:hover:text-neutral-700"
+    >
+      <Icon className="h-5 w-5" />
+    </button>
+  );
+}
+
+function ProjectNav({
+  activeIndex,
+  total,
+  canGoPrev,
+  canGoNext,
+  onPrev,
+  onNext,
+  visible,
+}: {
+  activeIndex: number | null;
+  total: number;
+  canGoPrev: boolean;
+  canGoNext: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+  visible: boolean;
+}) {
+  return (
+    <motion.div
+      initial={false}
+      animate={{ opacity: visible ? 1 : 0, x: visible ? 0 : 24 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      aria-hidden={!visible}
+      style={{ pointerEvents: visible ? "auto" : "none" }}
+      className="fixed right-4 top-1/2 z-40 hidden -translate-y-1/2 flex-col items-center gap-3 md:flex lg:right-8"
+    >
+      <NavArrow direction="up" disabled={!canGoPrev} onClick={onPrev} />
+
+      <div className="font-mono text-[10px] tracking-widest text-neutral-500 tabular-nums">
+        <span className="text-red-500">
+          {String((activeIndex ?? 0) + 1).padStart(2, "0")}
+        </span>
+        {" / "}
+        {String(total).padStart(2, "0")}
+      </div>
+
+      <NavArrow direction="down" disabled={!canGoNext} onClick={onNext} />
+    </motion.div>
+  );
+}
+
 function FinishLine() {
   const checkerboardSize = 40;
   const rows = 2;
@@ -418,13 +490,24 @@ function FinishLine() {
 export default function Project() {
   const containerRef = useRef<HTMLDivElement>(null);
   const isInZone = useIsInViewport(containerRef);
+
+  const [projects, setProjects] = useState<Project[]>(fallbackProjects);
+
+  const {
+    activeIndex,
+    goPrev,
+    goNext,
+    canGoPrev,
+    canGoNext,
+    visible,
+    isNavigating,
+  } = useSectionNav(containerRef, projects);
+
   useScrollSnap(containerRef, {
-    enabled: isInZone,
+    enabled: isInZone && !isNavigating,
     threshold: 50,
     cooldown: 600,
   });
-
-  const [projects, setProjects] = useState<Project[]>(fallbackProjects);
 
   useEffect(() => {
     let cancelled = false;
@@ -460,6 +543,16 @@ export default function Project() {
           total={projects.length}
         />
       ))}
+
+      <ProjectNav
+        activeIndex={activeIndex}
+        total={projects.length}
+        canGoPrev={canGoPrev}
+        canGoNext={canGoNext}
+        onPrev={goPrev}
+        onNext={goNext}
+        visible={visible}
+      />
     </div>
   );
 }
