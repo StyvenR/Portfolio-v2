@@ -59,11 +59,27 @@ export function useScrollSnap(
       return closest ? { section: closest, distance: closestDist } : null;
     };
 
-    // --- Verifier si on doit ignorer le snap (derniere section scroll vers le bas) ---
+    // --- Suivre la direction du scroll pour laisser sortir de la zone ---
+    let lastScrollY = window.scrollY;
+    let scrollDirection: "up" | "down" = "down";
+
+    const trackDirection = () => {
+      const y = window.scrollY;
+      if (y !== lastScrollY) {
+        scrollDirection = y < lastScrollY ? "up" : "down";
+        lastScrollY = y;
+      }
+    };
+
+    // --- Verifier si on doit ignorer le snap (sortie de zone par le haut ou le bas) ---
     const shouldSkipSnap = (section: HTMLElement): boolean => {
-      const isLastSection = section === sections[sections.length - 1];
       const rect = section.getBoundingClientRect();
-      return isLastSection && rect.top < -150;
+      const isLastSection = section === sections[sections.length - 1];
+      if (isLastSection && rect.top < -150) return true;
+      // En remontant au-dessus de la premiere section, snapper la rejouerait
+      // vers le bas : on laisse l'utilisateur quitter la zone.
+      const isFirstSection = section === sections[0];
+      return isFirstSection && rect.top > 0 && scrollDirection === "up";
     };
 
     // --- Snapper vers une section ---
@@ -88,6 +104,9 @@ export function useScrollSnap(
     let isWheeling = false;
 
     const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        scrollDirection = e.deltaY < 0 ? "up" : "down";
+      }
       if (!isInProjectsZone()) return;
 
       if (isScrollingRef.current) {
@@ -138,6 +157,7 @@ export function useScrollSnap(
     window.addEventListener("wheel", handleWheel, { passive: false });
 
     const handleScroll = () => {
+      trackDirection();
       if (scrollEndTimerRef.current) {
         clearTimeout(scrollEndTimerRef.current);
       }
