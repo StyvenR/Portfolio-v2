@@ -2,6 +2,8 @@
 
 import { ALL_COMPETENCES, BLOCS } from "@/utils/competences";
 import { AnimatePresence, motion } from "framer-motion";
+import { ChevronRight } from "lucide-react";
+import { useState } from "react";
 import type { ProjectCompetenceLink } from "./types";
 
 interface CompetencesPickerProps {
@@ -11,6 +13,20 @@ interface CompetencesPickerProps {
 
 export function CompetencesPicker({ value, onChange }: CompetencesPickerProps) {
   const byCode = new Map(value.map((c) => [c.code, c]));
+
+  // Tous les blocs sont replies a l'ouverture du formulaire : le compteur
+  // `n/total` de chaque en-tete suffit a voir ou il y a deja des competences.
+  const [openBlocs, setOpenBlocs] = useState<Set<string>>(new Set());
+
+  const setOpen = (code: string, open: boolean) => {
+    setOpenBlocs((prev) => {
+      if (prev.has(code) === open) return prev;
+      const next = new Set(prev);
+      if (open) next.add(code);
+      else next.delete(code);
+      return next;
+    });
+  };
 
   const toggle = (code: string) => {
     if (byCode.has(code)) {
@@ -38,14 +54,22 @@ export function CompetencesPicker({ value, onChange }: CompetencesPickerProps) {
         const selected = bloc.competences.filter((c) =>
           byCode.has(c.code),
         ).length;
+        const isOpen = openBlocs.has(bloc.code);
 
         return (
           <details
             key={bloc.code}
-            open={selected > 0}
+            open={isOpen}
+            onToggle={(e) => setOpen(bloc.code, e.currentTarget.open)}
             className="rounded-md border border-red-600/20 bg-gray-900/40"
           >
-            <summary className="cursor-pointer select-none px-3 py-2.5 flex items-center gap-3">
+            <summary className="cursor-pointer select-none px-3 py-2.5 flex items-center gap-3 list-none [&::-webkit-details-marker]:hidden">
+              <ChevronRight
+                aria-hidden="true"
+                className={`w-4 h-4 shrink-0 text-red-500 transition-transform duration-200 ${
+                  isOpen ? "rotate-90" : ""
+                }`}
+              />
               <span className="font-mono text-sm font-bold text-red-500">
                 {bloc.code}
               </span>
