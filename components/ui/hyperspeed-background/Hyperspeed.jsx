@@ -47,6 +47,26 @@ const DEFAULT_EFFECT_OPTIONS = {
   },
 };
 
+// La scene est limitee par le fill rate : son cout est proportionnel au nombre
+// de pixels rendus. Sans plafond, un 32" 4K coute 4x un 1080p. On rend donc
+// toujours dans le meme budget de pixels et on laisse le CSS agrandir le
+// canvas — l'effet est un neon flou, l'upscale ne se voit pas.
+const MAX_RENDER_PIXELS = 1_600_000; // ~1600x1000
+const MIN_PIXEL_RATIO = 0.6;
+const MAX_PIXEL_RATIO = 1.5;
+
+function budgetedPixelRatio(width, height) {
+  if (width <= 0 || height <= 0) return 1;
+
+  const dpr = window.devicePixelRatio || 1;
+  const budgeted = Math.sqrt(MAX_RENDER_PIXELS / (width * height));
+
+  return Math.max(
+    MIN_PIXEL_RATIO,
+    Math.min(dpr, MAX_PIXEL_RATIO, budgeted),
+  );
+}
+
 const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
   const hyperspeed = useRef(null);
   const appRef = useRef(null);
@@ -379,8 +399,8 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
           antialias: false,
           alpha: true,
         });
+        this.renderer.setPixelRatio(budgetedPixelRatio(initW, initH));
         this.renderer.setSize(initW, initH, false);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
         this.composer = new EffectComposer(this.renderer);
         container.append(this.renderer.domElement);
 
@@ -461,6 +481,9 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
           return;
         }
 
+        // Recalcule le budget : la fenetre peut changer de taille, ou passer
+        // sur un ecran de densite differente.
+        this.renderer.setPixelRatio(budgetedPixelRatio(width, height));
         this.renderer.setSize(width, height);
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
