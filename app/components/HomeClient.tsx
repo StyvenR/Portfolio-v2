@@ -25,7 +25,7 @@ export default function HomeClient() {
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
       <header
         role="banner"
-        className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-sm border-b border-red-600/20"
+        className="fixed top-0 w-full z-50 bg-black/95 border-b border-red-600/20"
       >
         <nav
           aria-label="Navigation principale"
@@ -63,7 +63,11 @@ export default function HomeClient() {
             aria-expanded={menuOpen}
             className="md:hidden -mr-2 p-2 hover:text-red-600 transition-colors"
           >
-            {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {menuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
           </button>
         </nav>
 
@@ -257,17 +261,50 @@ export default function HomeClient() {
           </div>
           <LogoLoop
             logos={[
-              { src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg", alt: "React" },
-              { src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg", alt: "Next.js" },
-              { src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg", alt: "TypeScript" },
-              { src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tailwindcss/tailwindcss-original.svg", alt: "Tailwind CSS" },
-              { src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg", alt: "Node.js" },
-              { src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg", alt: "PostgreSQL" },
-              { src: "https://cdn.simpleicons.org/prisma/2D3748", alt: "Prisma" },
-              { src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg", alt: "Git" },
-              { src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg", alt: "JavaScript" },
-              { src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/php/php-original.svg", alt: "PHP" },
-              { src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/c/c-original.svg", alt: "C" },
+              {
+                src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg",
+                alt: "React",
+              },
+              {
+                src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg",
+                alt: "Next.js",
+              },
+              {
+                src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg",
+                alt: "TypeScript",
+              },
+              {
+                src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tailwindcss/tailwindcss-original.svg",
+                alt: "Tailwind CSS",
+              },
+              {
+                src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg",
+                alt: "Node.js",
+              },
+              {
+                src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg",
+                alt: "PostgreSQL",
+              },
+              {
+                src: "https://cdn.simpleicons.org/prisma/2D3748",
+                alt: "Prisma",
+              },
+              {
+                src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg",
+                alt: "Git",
+              },
+              {
+                src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg",
+                alt: "JavaScript",
+              },
+              {
+                src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/php/php-original.svg",
+                alt: "PHP",
+              },
+              {
+                src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/c/c-original.svg",
+                alt: "C",
+              },
             ]}
             speed={80}
             direction="left"

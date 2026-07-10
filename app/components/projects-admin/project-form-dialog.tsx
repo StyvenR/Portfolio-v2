@@ -60,25 +60,27 @@ export function ProjectFormDialog({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start md:items-center justify-center overflow-y-auto p-4"
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm overflow-y-auto"
           onClick={onClose}
         >
-          <motion.div
-            initial={{ y: 24, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 24, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-2xl bg-gray-950 border border-red-600/30 rounded-xl shadow-2xl my-8"
-          >
-            <ProjectFormFields
-              key={project?.id ?? "new"}
-              project={project}
-              isSaving={isSaving}
-              onClose={onClose}
-              onSubmit={onSubmit}
-            />
-          </motion.div>
+          <div className="flex min-h-full items-center justify-center p-4">
+            <motion.div
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl bg-gray-950 border border-red-600/30 rounded-xl shadow-2xl"
+            >
+              <ProjectFormFields
+                key={project?.id ?? "new"}
+                project={project}
+                isSaving={isSaving}
+                onClose={onClose}
+                onSubmit={onSubmit}
+              />
+            </motion.div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
