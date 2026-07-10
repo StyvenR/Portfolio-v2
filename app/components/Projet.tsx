@@ -8,10 +8,10 @@ import {
   ModalTrigger,
 } from "@/components/ui/shadcn-io/animated-modal";
 import { useCheckerboardColumns } from "@/hooks/useCheckerboardColumns";
-import { COMPETENCES_BY_CODE } from "@/utils/competences";
 import { useIsInViewport } from "@/hooks/useIsInViewport";
 import { useScrollSnap } from "@/hooks/useScrollSnap";
 import { useSectionNav } from "@/hooks/useSectionNav";
+import { COMPETENCES_BY_CODE } from "@/utils/competences";
 import {
   PLACEHOLDER_IMAGE,
   projects as fallbackProjects,
@@ -61,9 +61,9 @@ function PitBoard({
         data-project-section
         className="h-screen snap-start flex justify-center items-center relative overflow-hidden bg-black"
       >
-        {/* scanlines overlay F1 broadcast */}
+        {/* Scanlines overlay F1 broadcast */}
         <div
-          className="absolute inset-0 pointer-events-none opacity-[0.08] z-0"
+          className="absolute inset-0 pointer-events-none opacity-[0.08] z-0 transform-gpu"
           style={{
             backgroundImage:
               "repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 3px)",
@@ -74,9 +74,9 @@ function PitBoard({
           ref={ref}
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, amount: 0.3 }}
+          viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative z-10 w-[92vw] max-w-[1100px] border-2 border-red-600 bg-black/90 font-mono shadow-[0_0_40px_rgba(220,38,38,0.25)]"
+          className="relative z-10 w-[92vw] max-w-[1100px] border-2 border-red-600 bg-black/90 font-mono shadow-[0_0_20px_rgba(220,38,38,0.25)]"
         >
           {/* Header pit board */}
           <div className="flex items-center justify-between border-b-2 border-red-600 bg-red-600 text-black px-3 py-1.5 text-[11px] sm:text-sm font-black tracking-widest uppercase">
