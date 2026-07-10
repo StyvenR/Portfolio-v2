@@ -52,7 +52,7 @@ export const ModalTrigger = ({
     <button
       className={cn(
         "px-4 py-2 rounded-md text-black dark:text-white text-center relative overflow-hidden",
-        className
+        className,
       )}
       onClick={() => setOpen(true)}
     >
@@ -81,7 +81,7 @@ export const ModalBody = ({
   const modalRef = useRef<HTMLDivElement>(null);
   const { setOpen } = useModal();
   useOnClickOutside(modalRef as React.RefObject<HTMLElement>, () =>
-    setOpen(false)
+    setOpen(false),
   );
 
   // Fermer le modal avec la touche Échap
@@ -124,7 +124,7 @@ export const ModalBody = ({
             ref={modalRef}
             className={cn(
               "min-h-0 md:min-h-[50%] max-h-[85%] md:max-h-[90%] max-w-[95%] md:max-w-[40%] bg-transparent rounded-2xl relative z-50 flex flex-col flex-1 overflow-visible shadow-2xl shadow-red-600/20",
-              className
+              className,
             )}
             initial={{
               opacity: 0,
@@ -167,7 +167,10 @@ export const ModalContent = ({
 }) => {
   return (
     <div
-      className={cn("flex flex-col flex-1 p-5 md:p-8 lg:p-10 text-white", className)}
+      className={cn(
+        "flex flex-col flex-1 p-5 md:p-8 lg:p-10 text-white",
+        className,
+      )}
     >
       {children}
     </div>
@@ -185,7 +188,7 @@ export const ModalFooter = ({
     <div
       className={cn(
         "flex justify-end p-4 bg-gray-100 dark:bg-neutral-900",
-        className
+        className,
       )}
     >
       {children}
@@ -196,18 +199,10 @@ export const ModalFooter = ({
 const Overlay = ({ className }: { className?: string }) => {
   return (
     <motion.div
-      initial={{
-        opacity: 0,
-      }}
-      animate={{
-        opacity: 1,
-        backdropFilter: "blur(10px)",
-      }}
-      exit={{
-        opacity: 0,
-        backdropFilter: "blur(0px)",
-      }}
-      className={`fixed inset-0 h-full w-full bg-black/80 backdrop-blur-md z-50 ${className}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className={`fixed inset-0 h-full w-full bg-black/90 z-50 ${className}`}
     ></motion.div>
   );
 };

@@ -3,8 +3,6 @@ import {
   EffectComposer,
   EffectPass,
   RenderPass,
-  SMAAEffect,
-  SMAAPreset,
 } from "postprocessing";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -477,49 +475,22 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
           new BloomEffect({
             luminanceThreshold: 0.2,
             luminanceSmoothing: 0,
-            resolutionScale: 1,
+            // Le bloom est un flou : le calculer en demi-resolution divise par
+            // quatre le travail de ses passes pour un resultat indiscernable.
+            resolutionScale: 0.5,
           }),
         );
 
-        const smaaPass = new EffectPass(
-          this.camera,
-          new SMAAEffect({
-            preset: SMAAPreset.MEDIUM,
-            searchImage: SMAAEffect.searchImageDataURL,
-            areaImage: SMAAEffect.areaImageDataURL,
-          }),
-        );
+        // Le SMAA ajoutait trois passes plein ecran (detection de contours,
+        // poids, melange) pour lisser des aretes deja noyees dans le bloom.
         this.renderPass.renderToScreen = false;
-        this.bloomPass.renderToScreen = false;
-        smaaPass.renderToScreen = true;
+        this.bloomPass.renderToScreen = true;
         this.composer.addPass(this.renderPass);
         this.composer.addPass(this.bloomPass);
-        this.composer.addPass(smaaPass);
       }
 
       loadAssets() {
-        const assets = this.assets;
-        return new Promise((resolve) => {
-          const manager = new THREE.LoadingManager(resolve);
-
-          const searchImage = new Image();
-          const areaImage = new Image();
-          assets.smaa = {};
-          searchImage.addEventListener("load", function () {
-            assets.smaa.search = this;
-            manager.itemEnd("smaa-search");
-          });
-
-          areaImage.addEventListener("load", function () {
-            assets.smaa.area = this;
-            manager.itemEnd("smaa-area");
-          });
-          manager.itemStart("smaa-search");
-          manager.itemStart("smaa-area");
-
-          searchImage.src = SMAAEffect.searchImageDataURL;
-          areaImage.src = SMAAEffect.areaImageDataURL;
-        });
+        return Promise.resolve();
       }
 
       init() {
@@ -1274,7 +1245,16 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
       if (width <= 0 || height <= 0) return false;
-      const needResize = canvas.width !== width || canvas.height !== height;
+
+      // `canvas.width` est la taille du drawing buffer (CSS x pixelRatio), pas
+      // la taille CSS. Les comparer directement rendait `needResize` toujours
+      // vrai des que le pixelRatio n'etait pas 1, et relancait un setSize a
+      // chaque frame.
+      const pixelRatio = renderer.getPixelRatio();
+      const needResize =
+        canvas.width !== Math.floor(width * pixelRatio) ||
+        canvas.height !== Math.floor(height * pixelRatio);
+
       if (needResize) {
         setSize(width, height, false);
       }
