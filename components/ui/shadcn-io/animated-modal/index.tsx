@@ -105,17 +105,9 @@ export const ModalBody = ({
     <AnimatePresence>
       {open && (
         <motion.div
-          initial={{
-            opacity: 0,
-          }}
-          animate={{
-            opacity: 1,
-            backdropFilter: "blur(10px)",
-          }}
-          exit={{
-            opacity: 0,
-            backdropFilter: "blur(0px)",
-          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           className="fixed perspective-midrange transform-3d inset-0 h-full w-full  flex items-center justify-center z-50"
         >
           <Overlay />

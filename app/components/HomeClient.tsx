@@ -3,8 +3,8 @@
 import { hyperspeedPresets } from "@/components/ui/hyperspeed-background/HyperSpeedPresets";
 import Hyperspeed from "@/components/ui/hyperspeed-background/Hyperspeed";
 import LogoLoop from "@/components/ui/logo-loop/LogoLoop";
-import { motion } from "motion/react";
 import { Menu, X } from "lucide-react";
+import { motion } from "motion/react";
 import { useState } from "react";
 import About from "./About";
 import Competences from "./Competences";
@@ -48,7 +48,7 @@ export default function HomeClient() {
               <li key={link.href}>
                 <a
                   href={link.href}
-                  className="hover:text-red-600 transition-colors cursor-pointer"
+                  className="hover:text-red-600 transition-colors"
                 >
                   {link.label}
                 </a>
@@ -95,7 +95,7 @@ export default function HomeClient() {
         <section
           id="hero"
           aria-label="Présentation"
-          className="relative h-screen flex items-center justify-center overflow-hidden bg-slate-800"
+          className="relative h-screen flex items-center justify-center overflow-hidden bg-black"
         >
           <div
             className="absolute inset-0"
@@ -111,15 +111,6 @@ export default function HomeClient() {
           >
             <Hyperspeed effectOptions={hyperspeedPresets.two} />
           </div>
-
-          <div
-            aria-hidden="true"
-            className="absolute bottom-0 left-0 right-0 h-[min(58vh,720px)] min-h-[280px] pointer-events-none z-5"
-            style={{
-              background:
-                "linear-gradient(to top, #1a1a1a 0%, rgba(26,26,26,0.65) 38%, rgba(26,26,26,0.1) 72%, transparent 100%)",
-            }}
-          />
 
           <div className="relative z-10 text-center px-4 md:px-6">
             <motion.h1
@@ -149,7 +140,7 @@ export default function HomeClient() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1 }}
-            className="absolute bottom-10 left-1/2 transform -translate-x-1/2"
+            className="absolute bottom-10 left-1/2 -translate-x-1/2"
             aria-hidden="true"
           >
             <motion.div
@@ -169,7 +160,7 @@ export default function HomeClient() {
         <section
           id="projets"
           aria-labelledby="projets-title"
-          className="relative overflow-hidden bg-[#1a1a1a]"
+          className="relative overflow-hidden bg-black"
         >
           <div className="relative container mx-auto py-16 z-40">
             <motion.h2
@@ -178,7 +169,7 @@ export default function HomeClient() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: false, amount: 0.3 }}
               transition={{ duration: 0.8, delay: 0.5 }}
-              className="text-3xl md:text-5xl font-bold mb-8 md:mb-16 text-center relative z-40"
+              className="text-3xl md:text-5xl font-bold mb-8 md:mb-16 text-center"
               style={{
                 textShadow:
                   "0 2px 10px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 0, 0, 0.5)",
@@ -195,20 +186,16 @@ export default function HomeClient() {
             whileInView={{ opacity: 1 }}
             viewport={{ once: false, amount: 0.1 }}
             transition={{ duration: 0.8 }}
-            className="absolute top-0 left-0 right-0 h-32 md:h-40 pointer-events-none z-30"
-            style={{
-              background:
-                "linear-gradient(to bottom, #1a1a1a 0%, rgba(26,26,26,0.35) 50%, transparent 100%)",
-            }}
+            className="absolute top-0 left-0 right-0 h-32 md:h-40 pointer-events-none z-30 bg-black"
             aria-hidden="true"
           />
 
           <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
+            initial={{ width: 0 }}
+            whileInView={{ width: "20px" }}
             viewport={{ once: false, amount: 0.1 }}
-            transition={{ duration: 1, delay: 0.2 }}
-            className="absolute inset-0 bg-projects-bitume"
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="absolute left-0 top-0 bottom-0 border-r-2 md:border-r-4 bg-black"
             aria-hidden="true"
           />
           <motion.div
@@ -216,15 +203,7 @@ export default function HomeClient() {
             whileInView={{ width: "20px" }}
             viewport={{ once: false, amount: 0.1 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="absolute left-0 top-0 bottom-0 border-r-2 md:border-r-4 border-white/20 md:w-[60px]!"
-            aria-hidden="true"
-          />
-          <motion.div
-            initial={{ width: 0 }}
-            whileInView={{ width: "20px" }}
-            viewport={{ once: false, amount: 0.1 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="absolute right-0 top-0 bottom-0 border-l-2 md:border-l-4 border-white/20 md:w-[60px]!"
+            className="absolute right-0 top-0 bottom-0 border-l-2 md:border-l-4 bg-black"
             aria-hidden="true"
           />
           <div className="relative z-20">
