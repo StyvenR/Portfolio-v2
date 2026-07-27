@@ -1,4 +1,4 @@
-import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
+import { requireWriteAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -7,10 +7,8 @@ interface ReorderBody {
 }
 
 export async function PATCH(request: NextRequest) {
-  const token = getTokenFromRequest(request);
-  if (!token || !verifyToken(token)) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireWriteAccess(request);
+  if (denied) return denied;
 
   try {
     const { ids } = (await request.json()) as ReorderBody;

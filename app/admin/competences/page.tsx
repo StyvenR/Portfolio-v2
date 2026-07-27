@@ -7,9 +7,12 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useAdminAuth } from "../admin-auth-context";
+import { ReadOnlyBadge } from "../read-only-badge";
 
 export default function AdminCompetencesPage() {
   const router = useRouter();
+  const { canEdit } = useAdminAuth();
   const [projects, setProjects] = useState<AdminProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [savingCell, setSavingCell] = useState<string | null>(null);
@@ -61,6 +64,7 @@ export default function AdminCompetencesPage() {
   }, [projects]);
 
   const toggleCell = async (project: AdminProject, code: string) => {
+    if (!canEdit) return;
     const token = getToken();
     if (!token) return;
 
@@ -116,9 +120,12 @@ export default function AdminCompetencesPage() {
               <span className="text-red-600">ADMIN</span>{" "}
               <span className="text-white">COMPÉTENCES</span>
             </h1>
-            <p className="text-sm text-gray-400">
-              Matrice de couverture du référentiel
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-gray-400">
+                Matrice de couverture du référentiel
+              </p>
+              {!canEdit && <ReadOnlyBadge />}
+            </div>
           </div>
           <div className="flex gap-3">
             <Link
@@ -175,8 +182,9 @@ export default function AdminCompetencesPage() {
             PROJETS {projects.length}
           </span>
           <span className="text-gray-600 normal-case tracking-normal">
-            Clique une case pour rattacher une compétence à un projet. Les
-            preuves textuelles s&apos;éditent depuis la fiche projet.
+            {canEdit
+              ? "Clique une case pour rattacher une compétence à un projet. Les preuves textuelles s'éditent depuis la fiche projet."
+              : "Consultation uniquement : votre compte ne peut pas modifier la matrice."}
           </span>
         </div>
 
@@ -280,30 +288,45 @@ export default function AdminCompetencesPage() {
                             );
                             const cellKey = `${project.id}:${competence.code}`;
                             const isSaving = savingCell === cellKey;
+                            const dot = (
+                              <span
+                                className={`w-4 h-4 rounded-full border transition-all ${
+                                  checked
+                                    ? "bg-red-600 border-red-600 shadow-[0_0_8px_rgba(220,38,38,0.6)]"
+                                    : `border-gray-700 ${canEdit ? "hover:border-red-600/60" : ""}`
+                                } ${isSaving ? "animate-pulse" : ""}`}
+                              />
+                            );
 
                             return (
                               <td
                                 key={project.id}
                                 className="border-b border-l border-red-600/10 p-0 text-center"
                               >
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    toggleCell(project, competence.code)
-                                  }
-                                  disabled={isSaving}
-                                  aria-pressed={checked}
-                                  aria-label={`${competence.code} — ${project.title}`}
-                                  className="w-full h-full py-2.5 flex items-center justify-center hover:bg-red-600/10 transition-colors disabled:opacity-50"
-                                >
-                                  <span
-                                    className={`w-4 h-4 rounded-full border transition-all ${
-                                      checked
-                                        ? "bg-red-600 border-red-600 shadow-[0_0_8px_rgba(220,38,38,0.6)]"
-                                        : "border-gray-700 hover:border-red-600/60"
-                                    } ${isSaving ? "animate-pulse" : ""}`}
-                                  />
-                                </button>
+                                {canEdit ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      toggleCell(project, competence.code)
+                                    }
+                                    disabled={isSaving}
+                                    aria-pressed={checked}
+                                    aria-label={`${competence.code} — ${project.title}`}
+                                    className="w-full h-full py-2.5 flex items-center justify-center hover:bg-red-600/10 transition-colors disabled:opacity-50"
+                                  >
+                                    {dot}
+                                  </button>
+                                ) : (
+                                  <div
+                                    role="img"
+                                    aria-label={`${competence.code} — ${project.title} : ${
+                                      checked ? "rattachée" : "non rattachée"
+                                    }`}
+                                    className="w-full h-full py-2.5 flex items-center justify-center"
+                                  >
+                                    {dot}
+                                  </div>
+                                )}
                               </td>
                             );
                           })}

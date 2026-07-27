@@ -1,3 +1,4 @@
+import { requireWriteAccess } from "@/lib/auth";
 import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
@@ -62,19 +63,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = requireWriteAccess(request);
+  if (denied) return denied;
+
   try {
-    const token = getTokenFromRequest(request);
-
-    if (!token) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-
-    if (!payload) {
-      return NextResponse.json({ error: "Token invalide" }, { status: 401 });
-    }
-
     const body = await request.json();
     const { ids } = body as { ids: string[] };
 

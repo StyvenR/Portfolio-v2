@@ -11,10 +11,12 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { useAdminAuth } from "../admin-auth-context";
+import { ReadOnlyBadge } from "../read-only-badge";
 
 export default function AdminProjectsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<{ email: string } | null>(null);
+  const { user, canEdit } = useAdminAuth();
   const [projects, setProjects] = useState<AdminProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -57,21 +59,11 @@ export default function AdminProjectsPage() {
   }, [router, getToken]);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    fetch("/api/auth/verify", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((d) => d.user && setUser(d.user))
-      .catch(() => undefined);
-  }, [getToken]);
-
-  useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
 
   const handleReorder = async (reordered: AdminProject[]) => {
+    if (!canEdit) return;
     const previous = projects;
     setProjects(reordered);
     const token = getToken();
@@ -94,6 +86,7 @@ export default function AdminProjectsPage() {
   };
 
   const handleSubmit = async (values: ProjectFormValues) => {
+    if (!canEdit) return;
     const token = getToken();
     if (!token) return;
 
@@ -135,7 +128,7 @@ export default function AdminProjectsPage() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!pendingDelete) return;
+    if (!pendingDelete || !canEdit) return;
     const token = getToken();
     if (!token) return;
 
@@ -167,9 +160,12 @@ export default function AdminProjectsPage() {
               <span className="text-red-600">ADMIN</span>{" "}
               <span className="text-white">PROJETS</span>
             </h1>
-            <p className="text-sm text-gray-400">
-              {user?.email || "Chargement..."}
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-gray-400">
+                {user?.email || "Chargement..."}
+              </p>
+              {user && !canEdit && <ReadOnlyBadge />}
+            </div>
           </div>
           <div className="flex gap-3">
             <Link
@@ -215,21 +211,25 @@ export default function AdminProjectsPage() {
               {projects.length} projet{projects.length > 1 ? "s" : ""}
             </h2>
             <p className="text-sm text-gray-400">
-              Glissez verticalement pour changer l&apos;ordre d&apos;affichage.
+              {canEdit
+                ? "Glissez verticalement pour changer l'ordre d'affichage."
+                : "Consultation uniquement : votre compte ne peut pas modifier les projets."}
             </p>
           </div>
-          <motion.button
-            onClick={() => {
-              setEditing(null);
-              setDialogOpen(true);
-            }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Nouveau projet
-          </motion.button>
+          {canEdit && (
+            <motion.button
+              onClick={() => {
+                setEditing(null);
+                setDialogOpen(true);
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Nouveau projet
+            </motion.button>
+          )}
         </div>
 
         {isLoading ? (
@@ -240,20 +240,23 @@ export default function AdminProjectsPage() {
         ) : projects.length === 0 ? (
           <div className="text-center py-16 border border-dashed border-red-600/20 rounded-lg">
             <p className="text-gray-400 mb-4">Aucun projet pour le moment.</p>
-            <button
-              onClick={() => {
-                setEditing(null);
-                setDialogOpen(true);
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Créer le premier projet
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => {
+                  setEditing(null);
+                  setDialogOpen(true);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Créer le premier projet
+              </button>
+            )}
           </div>
         ) : (
           <ProjectsSortableList
             projects={projects}
+            canEdit={canEdit}
             onReorder={handleReorder}
             onEdit={(p) => {
               setEditing(p);
@@ -265,7 +268,7 @@ export default function AdminProjectsPage() {
       </div>
 
       <ProjectFormDialog
-        open={dialogOpen}
+        open={dialogOpen && canEdit}
         project={editing}
         isSaving={isSaving}
         onClose={() => {
@@ -276,7 +279,7 @@ export default function AdminProjectsPage() {
         onSubmit={handleSubmit}
       />
 
-      {pendingDelete && (
+      {pendingDelete && canEdit && (
         <div
           className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setPendingDelete(null)}

@@ -72,29 +72,32 @@ export const SubmissionsDataTable = ({
   const [selectedSubmission, setSelectedSubmission] =
     useState<ContactSubmission | null>(null);
 
+  // La sélection ne sert qu'à la suppression : inutile sans droits d'écriture.
+  const selectionColumn: ColumnDef<ContactSubmission> = {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Sélectionner tout"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Sélectionner la ligne"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  };
+
   const columns: ColumnDef<ContactSubmission>[] = [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Sélectionner tout"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Sélectionner la ligne"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
+    ...(onDelete ? [selectionColumn] : []),
     {
       header: "Nom",
       accessorKey: "name",
@@ -348,8 +351,11 @@ export const SubmissionsDataTable = ({
       {table.getRowModel().rows?.length > 0 && (
         <div className="flex items-center justify-between mt-4">
           <div className="text-sm text-gray-300">
-            {table.getFilteredSelectedRowModel().rows.length} sur{" "}
-            {table.getFilteredRowModel().rows.length} ligne(s) sélectionnée(s).
+            {onDelete
+              ? `${table.getFilteredSelectedRowModel().rows.length} sur ${
+                  table.getFilteredRowModel().rows.length
+                } ligne(s) sélectionnée(s).`
+              : `${table.getFilteredRowModel().rows.length} ligne(s).`}
           </div>
           <div className="flex items-center gap-2">
             <button
