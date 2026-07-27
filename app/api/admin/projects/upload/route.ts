@@ -1,24 +1,17 @@
-import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
+import { requireWriteAccess } from "@/lib/auth";
 import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 
-function requireAuth(request: NextRequest) {
-  const token = getTokenFromRequest(request);
-  if (!token) return null;
-  return verifyToken(token);
-}
-
 function sanitizeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, "-").toLowerCase();
 }
 
 export async function POST(request: NextRequest) {
-  if (!requireAuth(request)) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireWriteAccess(request);
+  if (denied) return denied;
 
   try {
     const formData = await request.formData();

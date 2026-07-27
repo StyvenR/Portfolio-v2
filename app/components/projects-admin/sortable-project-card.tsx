@@ -10,6 +10,8 @@ import type { AdminProject } from "./types";
 interface SortableProjectCardProps {
   project: AdminProject;
   index: number;
+  /** `false` : carte consultable, sans poignée de tri ni actions. */
+  canEdit?: boolean;
   onEdit: (project: AdminProject) => void;
   onDelete: (project: AdminProject) => void;
 }
@@ -17,6 +19,7 @@ interface SortableProjectCardProps {
 export function SortableProjectCard({
   project,
   index,
+  canEdit = true,
   onEdit,
   onDelete,
 }: SortableProjectCardProps) {
@@ -27,7 +30,7 @@ export function SortableProjectCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: project.id });
+  } = useSortable({ id: project.id, disabled: !canEdit });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -44,15 +47,17 @@ export function SortableProjectCard({
           : "border-red-600/20 hover:border-red-600/40"
       }`}
     >
-      <button
-        type="button"
-        className="flex items-center justify-center px-1 text-gray-500 hover:text-red-500 cursor-grab active:cursor-grabbing touch-none"
-        aria-label="Glisser pour réordonner"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="w-5 h-5" />
-      </button>
+      {canEdit && (
+        <button
+          type="button"
+          className="flex items-center justify-center px-1 text-gray-500 hover:text-red-500 cursor-grab active:cursor-grabbing touch-none"
+          aria-label="Glisser pour réordonner"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="w-5 h-5" />
+        </button>
+      )}
 
       <div className="flex items-center justify-center w-8 text-sm font-mono text-red-500/80 shrink-0">
         {String(index + 1).padStart(2, "0")}
@@ -128,26 +133,28 @@ export function SortableProjectCard({
             </a>
           )}
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onEdit(project)}
-            className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-            aria-label="Éditer"
-            title="Éditer"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(project)}
-            className="p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-600/10 transition-colors"
-            aria-label="Supprimer"
-            title="Supprimer"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+        {canEdit && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onEdit(project)}
+              className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+              aria-label="Éditer"
+              title="Éditer"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(project)}
+              className="p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-600/10 transition-colors"
+              aria-label="Supprimer"
+              title="Supprimer"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

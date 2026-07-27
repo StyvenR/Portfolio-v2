@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AdminAuthProvider, type AdminUser } from "./admin-auth-context";
 
 export default function AdminLayout({
   children,
@@ -12,6 +13,7 @@ export default function AdminLayout({
   const pathname = usePathname();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<AdminUser | null>(null);
 
   // Ne pas vérifier l'authentification sur la page de login
   const isLoginPage = pathname === "/admin/login";
@@ -40,6 +42,8 @@ export default function AdminLayout({
         });
 
         if (response.ok) {
+          const data = await response.json();
+          setUser(data.user ?? null);
           setIsAuthenticated(true);
         } else {
           localStorage.removeItem("auth_token");
@@ -71,5 +75,5 @@ export default function AdminLayout({
     return null;
   }
 
-  return <>{children}</>;
+  return <AdminAuthProvider user={user}>{children}</AdminAuthProvider>;
 }

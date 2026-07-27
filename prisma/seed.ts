@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { config } from "dotenv";
 import pkg from "pg";
+import { ROLE_ADMIN, ROLE_VISITOR_ADMIN } from "../lib/roles";
 import { projects as fallbackProjects } from "../utils/my_project";
 
 // Même précédence que Next.js et prisma.config.ts : `.env.local` gagne sur `.env`.
@@ -17,12 +18,19 @@ const prisma = new PrismaClient({
   log: ["error", "warn"],
 });
 
-async function seedAdmin() {
-  const email = process.env.ADMIN_EMAIL ?? "";
-  const password = process.env.ADMIN_PASSWORD ?? "";
+async function seedUser(
+  role: string,
+  emailVar: string,
+  passwordVar: string,
+  { optional = false }: { optional?: boolean } = {},
+) {
+  const email = process.env[emailVar] ?? "";
+  const password = process.env[passwordVar] ?? "";
 
   if (!email || !password) {
-    console.log("ADMIN_EMAIL / ADMIN_PASSWORD manquants, skip admin seed.");
+    if (!optional) {
+      console.log(`${emailVar} / ${passwordVar} manquants, skip ${role} seed.`);
+    }
     return;
   }
 
@@ -34,10 +42,10 @@ async function seedAdmin() {
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
-    data: { email, password: hashedPassword, role: "admin" },
+    data: { email, password: hashedPassword, role },
   });
 
-  console.log(`Utilisateur admin créé: ${user.email}`);
+  console.log(`Utilisateur ${role} créé: ${user.email}`);
 }
 
 async function seedProjects() {
@@ -67,7 +75,14 @@ async function seedProjects() {
 }
 
 async function main() {
-  await seedAdmin();
+  await seedUser(ROLE_ADMIN, "ADMIN_EMAIL", "ADMIN_PASSWORD");
+  // Compte de démo en lecture seule : accède à /admin sans rien pouvoir modifier.
+  await seedUser(
+    ROLE_VISITOR_ADMIN,
+    "VISITOR_ADMIN_EMAIL",
+    "VISITOR_ADMIN_PASSWORD",
+    { optional: true },
+  );
   await seedProjects();
 }
 

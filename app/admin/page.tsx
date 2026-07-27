@@ -6,6 +6,8 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { useAdminAuth } from "./admin-auth-context";
+import { ReadOnlyBadge } from "./read-only-badge";
 
 interface ContactSubmission {
   id: string;
@@ -17,33 +19,11 @@ interface ContactSubmission {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [user, setUser] = useState<{ email: string } | null>(null);
+  const { user, canEdit } = useAdminAuth();
   const [submissions, setSubmissions] = useState<ContactSubmission[]>([]);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-
-  useEffect(() => {
-    // Récupérer les informations de l'utilisateur depuis le token
-    const token = localStorage.getItem("auth_token");
-    if (token) {
-      fetch("/api/auth/verify", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.user) {
-            setUser(data.user);
-          }
-        })
-        .catch(() => {
-          localStorage.removeItem("auth_token");
-          router.push("/admin/login");
-        });
-    }
-  }, [router]);
 
   const fetchSubmissions = useCallback(
     async (page: number = 1, searchTerm: string = "") => {
@@ -101,6 +81,7 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteSubmissions = async (ids: string[]) => {
+    if (!canEdit) return;
     const token = localStorage.getItem("auth_token");
     if (!token) return;
 
@@ -130,9 +111,12 @@ export default function AdminDashboard() {
               <span className="text-red-600">ADMIN</span>{" "}
               <span className="text-white">DASHBOARD</span>
             </h1>
-            <p className="text-sm text-gray-400">
-              {user?.email || "Chargement..."}
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-gray-400">
+                {user?.email || "Chargement..."}
+              </p>
+              {user && !canEdit && <ReadOnlyBadge />}
+            </div>
           </div>
           <div className="flex justify-between gap-3">
             <div>
@@ -205,7 +189,7 @@ export default function AdminDashboard() {
           <SubmissionsDataTable
             data={submissions}
             isLoading={isLoading}
-            onDelete={handleDeleteSubmissions}
+            onDelete={canEdit ? handleDeleteSubmissions : undefined}
           />
         )}
       </div>

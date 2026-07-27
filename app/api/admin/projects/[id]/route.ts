@@ -1,16 +1,10 @@
-import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
+import { requireWriteAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   InvalidCompetenceError,
   parseCompetencesInput,
 } from "@/lib/project-competences";
 import { NextRequest, NextResponse } from "next/server";
-
-function requireAuth(request: NextRequest) {
-  const token = getTokenFromRequest(request);
-  if (!token) return null;
-  return verifyToken(token);
-}
 
 interface UpdateBody {
   title?: string;
@@ -26,9 +20,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!requireAuth(request)) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireWriteAccess(request);
+  if (denied) return denied;
 
   try {
     const { id } = await params;
@@ -86,9 +79,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!requireAuth(request)) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireWriteAccess(request);
+  if (denied) return denied;
 
   try {
     const { id } = await params;

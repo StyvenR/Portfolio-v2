@@ -24,6 +24,8 @@ import type { AdminProject } from "./types";
 
 interface ProjectsSortableListProps {
   projects: AdminProject[];
+  /** `false` : liste consultable mais ni réordonnable ni éditable. */
+  canEdit?: boolean;
   onReorder: (projects: AdminProject[]) => void;
   onEdit: (project: AdminProject) => void;
   onDelete: (project: AdminProject) => void;
@@ -31,6 +33,7 @@ interface ProjectsSortableListProps {
 
 export function ProjectsSortableList({
   projects,
+  canEdit = true,
   onReorder,
   onEdit,
   onDelete,
@@ -41,6 +44,7 @@ export function ProjectsSortableList({
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
+    if (!canEdit) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = projects.findIndex((p) => p.id === active.id);
@@ -48,6 +52,21 @@ export function ProjectsSortableList({
     if (oldIndex === -1 || newIndex === -1) return;
     onReorder(arrayMove(projects, oldIndex, newIndex));
   };
+
+  const cards = (
+    <div className="flex flex-col gap-3">
+      {projects.map((project, index) => (
+        <SortableProjectCard
+          key={project.id}
+          project={project}
+          index={index}
+          canEdit={canEdit}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <DndContext
@@ -60,17 +79,7 @@ export function ProjectsSortableList({
         items={projects.map((p) => p.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="flex flex-col gap-3">
-          {projects.map((project, index) => (
-            <SortableProjectCard
-              key={project.id}
-              project={project}
-              index={index}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
-          ))}
-        </div>
+        {cards}
       </SortableContext>
     </DndContext>
   );

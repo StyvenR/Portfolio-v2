@@ -1,16 +1,10 @@
-import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
+import { getAuthPayload, requireWriteAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   InvalidCompetenceError,
   parseCompetencesInput,
 } from "@/lib/project-competences";
 import { NextRequest, NextResponse } from "next/server";
-
-function requireAuth(request: NextRequest) {
-  const token = getTokenFromRequest(request);
-  if (!token) return null;
-  return verifyToken(token);
-}
 
 const COMPETENCES_INCLUDE = {
   competences: {
@@ -20,7 +14,7 @@ const COMPETENCES_INCLUDE = {
 } as const;
 
 export async function GET(request: NextRequest) {
-  if (!requireAuth(request)) {
+  if (!getAuthPayload(request)) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
   try {
@@ -46,9 +40,9 @@ interface CreateProjectBody {
 }
 
 export async function POST(request: NextRequest) {
-  if (!requireAuth(request)) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+  const denied = requireWriteAccess(request);
+  if (denied) return denied;
+
   try {
     const body = (await request.json()) as CreateProjectBody;
     const { title, description, image, tags, link, github } = body;
