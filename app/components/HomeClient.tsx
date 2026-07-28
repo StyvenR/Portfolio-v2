@@ -1,7 +1,5 @@
 "use client";
 
-import { hyperspeedPresets } from "@/components/ui/hyperspeed-background/HyperSpeedPresets";
-import Hyperspeed from "@/components/ui/hyperspeed-background/Hyperspeed";
 import LogoLoop from "@/components/ui/logo-loop/LogoLoop";
 import { Menu, X } from "lucide-react";
 import { motion } from "motion/react";
@@ -9,6 +7,7 @@ import { useState } from "react";
 import About from "./About";
 import Competences from "./Competences";
 import Contact from "./Contact";
+import HeroBackground from "./HeroBackground";
 import Project from "./Projet";
 
 const NAV_LINKS = [
@@ -109,7 +108,7 @@ export default function HomeClient() {
             }}
             aria-hidden="true"
           >
-            <Hyperspeed effectOptions={hyperspeedPresets.two} />
+            <HeroBackground />
           </div>
 
           <div className="relative z-10 text-center px-4 md:px-6">
