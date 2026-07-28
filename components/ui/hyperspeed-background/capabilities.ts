@@ -63,27 +63,6 @@ function probeRenderer(): string | null {
   return SOFTWARE_RENDERERS.test(renderer) ? null : renderer;
 }
 
-// Override de test. Le deuxieme terme couvre les previews Vercel, que Vercel
-// build avec NODE_ENV=production : c'est justement la qu'on veut pouvoir
-// tester depuis un vrai telephone.
-//
-// Le code reste present dans le bundle de production (l'expression n'est pas
-// repliable a la compilation), mais y vaut toujours `false` : en production
-// Vercel fixe NEXT_PUBLIC_VERCEL_ENV a "production", et ailleurs la variable
-// est absente. Le pire cas est quelques octets morts.
-const OVERRIDE_ENABLED =
-  process.env.NODE_ENV !== "production" ||
-  process.env.NEXT_PUBLIC_VERCEL_ENV === "preview";
-
-/** Lit `?heroQuality=high|low|off` dans l'URL. */
-function overrideFromUrl(): HeroQuality | null {
-  if (!OVERRIDE_ENABLED) return null;
-
-  const value = new URLSearchParams(window.location.search).get("heroQuality");
-
-  return value === "high" || value === "low" || value === "off" ? value : null;
-}
-
 /** Heuristique "petit appareil" : peu de coeurs ou peu de RAM. */
 function isLowEndDevice(): boolean {
   const cores = navigator.hardwareConcurrency ?? 8;
@@ -103,11 +82,6 @@ function isLowEndDevice(): boolean {
  */
 export function detectHeroQuality(): HeroQuality {
   if (typeof window === "undefined") return "off";
-
-  // `?heroQuality=low` court-circuite toute la detection (hors production).
-  const forced = overrideFromUrl();
-  if (forced) return forced;
-
   if (prefersReducedMotion()) return "off";
   if (probeRenderer() === null) return "off";
 
