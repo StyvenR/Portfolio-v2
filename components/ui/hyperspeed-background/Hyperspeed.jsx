@@ -55,21 +55,49 @@ const MAX_RENDER_PIXELS = 1_600_000; // ~1600x1000
 const MIN_PIXEL_RATIO = 0.6;
 const MAX_PIXEL_RATIO = 1.5;
 
-function budgetedPixelRatio(width, height) {
+// Profil degrade : moitie moins de pixels, pas de post-processing, 30 fps. Les
+// render targets du bloom sont aussi ce qui consomme le plus de memoire GPU,
+// les retirer evite les pertes de contexte sur les petits mobiles.
+const LOW_QUALITY_PROFILE = {
+  maxRenderPixels: 700_000, // ~1050x670
+  maxPixelRatio: 1,
+  bloom: false,
+  fps: 30,
+};
+
+const HIGH_QUALITY_PROFILE = {
+  maxRenderPixels: MAX_RENDER_PIXELS,
+  maxPixelRatio: MAX_PIXEL_RATIO,
+  bloom: true,
+  // Le fond est un neon flou en mouvement continu : a 40 fps il est
+  // indiscernable de 60, pour un tiers de travail GPU en moins.
+  fps: 40,
+};
+
+function budgetedPixelRatio(width, height, profile) {
   if (width <= 0 || height <= 0) return 1;
 
   const dpr = window.devicePixelRatio || 1;
-  const budgeted = Math.sqrt(MAX_RENDER_PIXELS / (width * height));
+  const budgeted = Math.sqrt(profile.maxRenderPixels / (width * height));
 
   return Math.max(
     MIN_PIXEL_RATIO,
-    Math.min(dpr, MAX_PIXEL_RATIO, budgeted),
+    Math.min(dpr, profile.maxPixelRatio, budgeted),
   );
 }
 
-const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
+const Hyperspeed = ({
+  effectOptions = DEFAULT_EFFECT_OPTIONS,
+  quality = "high",
+  onUnavailable,
+}) => {
   const hyperspeed = useRef(null);
   const appRef = useRef(null);
+
+  // Garde la derniere callback sans relancer l'effet : la scene ne doit se
+  // reconstruire que si les options ou la qualite changent.
+  const onUnavailableRef = useRef(onUnavailable);
+  onUnavailableRef.current = onUnavailable;
 
   useEffect(() => {
     if (appRef.current) {
@@ -381,7 +409,7 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
     };
 
     class App {
-      constructor(container, options = {}) {
+      constructor(container, options = {}, profile = HIGH_QUALITY_PROFILE) {
         this.options = options;
         if (this.options.distortion == null) {
           this.options.distortion = {
@@ -390,19 +418,43 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
           };
         }
         this.container = container;
+        this.profile = profile;
         this.hasValidSize = false;
+        this.frameInterval = 1000 / profile.fps;
+        this.lastFrameTime = 0;
 
         const initW = Math.max(1, container.offsetWidth);
         const initH = Math.max(1, container.offsetHeight);
 
+        // Peut lever si le driver refuse le contexte (WebGL desactive, quota de
+        // contextes atteint, navigateur in-app). L'appelant recupere l'erreur.
         this.renderer = new THREE.WebGLRenderer({
           antialias: false,
           alpha: true,
+          powerPreference: "high-performance",
+          // Sans GPU le navigateur sert un rasteriseur logiciel qui rend chaque
+          // frame sur le thread principal : mieux vaut echouer et laisser le
+          // fond statique en place.
+          failIfMajorPerformanceCaveat: true,
         });
-        this.renderer.setPixelRatio(budgetedPixelRatio(initW, initH));
+        this.renderer.setPixelRatio(budgetedPixelRatio(initW, initH, profile));
         this.renderer.setSize(initW, initH, false);
         this.composer = new EffectComposer(this.renderer);
         container.append(this.renderer.domElement);
+
+        // Une perte de contexte (pression memoire, mise en veille du GPU)
+        // laissait la boucle rAF tourner sur un canvas noir a jamais.
+        this.contextLost = false;
+        this.onContextLost = (event) => {
+          event.preventDefault();
+          this.contextLost = true;
+          this.paused = true;
+          this.onContextLostCallback?.();
+        };
+        this.renderer.domElement.addEventListener(
+          "webglcontextlost",
+          this.onContextLost,
+        );
 
         this.camera = new THREE.PerspectiveCamera(
           options.fov,
@@ -483,7 +535,9 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
 
         // Recalcule le budget : la fenetre peut changer de taille, ou passer
         // sur un ecran de densite differente.
-        this.renderer.setPixelRatio(budgetedPixelRatio(width, height));
+        this.renderer.setPixelRatio(
+          budgetedPixelRatio(width, height, this.profile),
+        );
         this.renderer.setSize(width, height);
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
@@ -493,6 +547,15 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
 
       initPasses() {
         this.renderPass = new RenderPass(this.scene, this.camera);
+
+        if (!this.profile.bloom) {
+          // Une seule passe, rendue directement a l'ecran : plus de render
+          // target intermediaire, ni en temps GPU ni en memoire.
+          this.renderPass.renderToScreen = true;
+          this.composer.addPass(this.renderPass);
+          return;
+        }
+
         this.bloomPass = new EffectPass(
           this.camera,
           new BloomEffect({
@@ -661,6 +724,12 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
         }
 
         window.removeEventListener("resize", this.onWindowResize);
+        if (this.onContextLost && this.renderer?.domElement) {
+          this.renderer.domElement.removeEventListener(
+            "webglcontextlost",
+            this.onContextLost,
+          );
+        }
         if (this.container) {
           this.container.removeEventListener("mousedown", this.onMouseDown);
           this.container.removeEventListener("mouseup", this.onMouseUp);
@@ -682,7 +751,9 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
         this.hasValidSize = true;
       }
       setPaused(paused) {
-        if (this.disposed || this.paused === paused) return;
+        // Un contexte perdu ne se relance pas : sans ca, revenir sur l'onglet
+        // redemarrait la boucle rAF sur un canvas mort.
+        if (this.disposed || this.contextLost || this.paused === paused) return;
         this.paused = paused;
 
         if (!paused) {
@@ -691,8 +762,15 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
         }
       }
 
-      tick() {
+      tick(now = 0) {
         if (this.disposed || this.paused) return;
+
+        requestAnimationFrame(this.tick);
+
+        // Plafond de framerate. `clock.getDelta()` mesure le temps reel ecoule,
+        // donc l'animation garde la meme vitesse avec moins de frames.
+        if (now - this.lastFrameTime < this.frameInterval - 1) return;
+        this.lastFrameTime = now;
 
         if (!this.hasValidSize) {
           const w = this.container.offsetWidth;
@@ -704,7 +782,6 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
             this.composer.setSize(w, h);
             this.hasValidSize = true;
           } else {
-            requestAnimationFrame(this.tick);
             return;
           }
         }
@@ -722,8 +799,6 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
           this.render(delta);
           this.update(delta);
         }
-
-        requestAnimationFrame(this.tick);
       }
     }
 
@@ -1294,9 +1369,32 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
     };
     options.distortion = distortions[options.distortion];
 
-    const myApp = new App(container, options);
+    const profile =
+      quality === "low" ? LOW_QUALITY_PROFILE : HIGH_QUALITY_PROFILE;
+
+    let myApp;
+    try {
+      myApp = new App(container, options, profile);
+      myApp.onContextLostCallback = () => onUnavailableRef.current?.();
+      myApp.init();
+    } catch (error) {
+      // WebGL indisponible ou refuse : on nettoie ce qui a pu etre cree et on
+      // rend la main au fond statique. Laisser l'erreur remonter depuis un
+      // useEffect ferait tomber toute la page.
+      console.warn("Hyperspeed: scene WebGL indisponible", error);
+      try {
+        myApp?.dispose();
+      } catch {
+        // le nettoyage d'une scene a moitie construite peut lui-meme echouer
+      }
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+      onUnavailableRef.current?.();
+      return;
+    }
+
     appRef.current = myApp;
-    myApp.loadAssets().then(myApp.init);
 
     // La scene ne tourne que si elle est a l'ecran ET l'onglet au premier plan.
     let onScreen = true;
@@ -1320,7 +1418,7 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }) => {
         appRef.current = null;
       }
     };
-  }, [effectOptions]);
+  }, [effectOptions, quality]);
 
   return <div id="lights" ref={hyperspeed}></div>;
 };
