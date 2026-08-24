@@ -9,6 +9,7 @@ import {
 } from "@/utils/competences";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
+import { competenceAnchorId, usePortfolioFocus } from "./portfolio-focus";
 
 interface ProjectLite {
   id: string;
@@ -99,18 +100,23 @@ function CompetenceRow({
   preuves,
   isOpen,
   onToggle,
+  onOpenProject,
 }: {
   competence: Competence;
   preuves: Preuve[];
   isOpen: boolean;
   onToggle: () => void;
+  onOpenProject: (projectId: string) => void;
 }) {
   const s = statut(preuves.length);
   const activite = ACTIVITES[competence.activite];
   const panelId = `competence-panel-${competence.code}`;
 
   return (
-    <div className={`border-b border-red-600/15 last:border-b-0 ${s.rowHover}`}>
+    <div
+      id={competenceAnchorId(competence.code)}
+      className={`scroll-mt-20 border-b border-red-600/15 last:border-b-0 ${s.rowHover}`}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -196,12 +202,13 @@ function CompetenceRow({
                         key={p.projectId}
                         className="border border-red-600/30 bg-neutral-950 px-3 py-2"
                       >
-                        <a
-                          href="#projets"
-                          className="text-xs md:text-sm font-black text-red-500 hover:text-red-400 transition-colors uppercase tracking-wide"
+                        <button
+                          type="button"
+                          onClick={() => onOpenProject(p.projectId)}
+                          className="text-left text-xs md:text-sm font-black text-red-500 hover:text-red-400 transition-colors uppercase tracking-wide cursor-pointer"
                         >
                           ◉ {p.title}
-                        </a>
+                        </button>
                         {p.evidence && (
                           <p className="text-[11px] md:text-xs text-neutral-400 mt-1 leading-relaxed">
                             {p.evidence}
@@ -225,11 +232,13 @@ function SectorPanel({
   preuvesIndex,
   openCode,
   onToggleCode,
+  onOpenProject,
 }: {
   bloc: Bloc;
   preuvesIndex: PreuvesIndex;
   openCode: string | null;
   onToggleCode: (code: string) => void;
+  onOpenProject: (projectId: string) => void;
 }) {
   const covered = bloc.competences.filter(
     (c) => (preuvesIndex.get(c.code)?.length ?? 0) > 0,
@@ -280,6 +289,7 @@ function SectorPanel({
             preuves={preuvesIndex.get(c.code) ?? []}
             isOpen={openCode === c.code}
             onToggle={() => onToggleCode(c.code)}
+            onOpenProject={onOpenProject}
           />
         ))}
       </div>
@@ -289,7 +299,10 @@ function SectorPanel({
 
 export default function Competences() {
   const [projects, setProjects] = useState<ProjectLite[]>([]);
-  const [openCode, setOpenCode] = useState<string | null>(null);
+  // Ouverture pilotée par le contexte : une compétence cliquée depuis une
+  // modale projet doit pouvoir déplier la bonne ligne d'ici.
+  const { openCompetence, toggleCompetence, focusProject } =
+    usePortfolioFocus();
 
   useEffect(() => {
     let cancelled = false;
@@ -405,10 +418,9 @@ export default function Competences() {
               key={bloc.code}
               bloc={bloc}
               preuvesIndex={preuvesIndex}
-              openCode={openCode}
-              onToggleCode={(code) =>
-                setOpenCode((current) => (current === code ? null : code))
-              }
+              openCode={openCompetence}
+              onToggleCode={toggleCompetence}
+              onOpenProject={focusProject}
             />
           ))}
         </div>
