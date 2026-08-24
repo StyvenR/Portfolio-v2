@@ -9,6 +9,11 @@ import {
 } from "@/utils/competences";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
+import {
+  blocAnchorId,
+  competenceAnchorId,
+  usePortfolioFocus,
+} from "./portfolio-focus";
 
 interface ProjectLite {
   id: string;
@@ -99,18 +104,23 @@ function CompetenceRow({
   preuves,
   isOpen,
   onToggle,
+  onOpenProject,
 }: {
   competence: Competence;
   preuves: Preuve[];
   isOpen: boolean;
   onToggle: () => void;
+  onOpenProject: (projectId: string) => void;
 }) {
   const s = statut(preuves.length);
   const activite = ACTIVITES[competence.activite];
   const panelId = `competence-panel-${competence.code}`;
 
   return (
-    <div className={`border-b border-red-600/15 last:border-b-0 ${s.rowHover}`}>
+    <div
+      id={competenceAnchorId(competence.code)}
+      className={`scroll-mt-20 border-b border-red-600/15 last:border-b-0 ${s.rowHover}`}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -168,7 +178,11 @@ function CompetenceRow({
             transition={{ duration: 0.25, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <div className="px-3 md:px-4 pb-5 pt-1 grid gap-5 md:grid-cols-2 bg-black/40">
+            {/* Un briefing long étirait la carte secteur sur plus d'un écran
+                et repoussait les compétences suivantes hors de vue. À partir
+                de md le panneau est plafonné et le débordement scrolle sur
+                place ; en dessous, le flux naturel reste plus lisible. */}
+            <div className="px-3 md:px-4 pb-5 pt-1 grid gap-5 md:grid-cols-2 bg-black/40 md:max-h-[min(20rem,50vh)] md:overflow-y-auto md:[scrollbar-width:thin] md:[scrollbar-color:var(--color-red-600)_transparent]">
               <div>
                 <div className="text-[10px] text-red-500 tracking-[0.3em] mb-2">
                   {`// BRIEFING ${activite.code}`}
@@ -196,12 +210,13 @@ function CompetenceRow({
                         key={p.projectId}
                         className="border border-red-600/30 bg-neutral-950 px-3 py-2"
                       >
-                        <a
-                          href="#projets"
-                          className="text-xs md:text-sm font-black text-red-500 hover:text-red-400 transition-colors uppercase tracking-wide"
+                        <button
+                          type="button"
+                          onClick={() => onOpenProject(p.projectId)}
+                          className="text-left text-xs md:text-sm font-black text-red-500 hover:text-red-400 transition-colors uppercase tracking-wide cursor-pointer"
                         >
                           ◉ {p.title}
-                        </a>
+                        </button>
                         {p.evidence && (
                           <p className="text-[11px] md:text-xs text-neutral-400 mt-1 leading-relaxed">
                             {p.evidence}
@@ -225,11 +240,13 @@ function SectorPanel({
   preuvesIndex,
   openCode,
   onToggleCode,
+  onOpenProject,
 }: {
   bloc: Bloc;
   preuvesIndex: PreuvesIndex;
   openCode: string | null;
   onToggleCode: (code: string) => void;
+  onOpenProject: (projectId: string) => void;
 }) {
   const covered = bloc.competences.filter(
     (c) => (preuvesIndex.get(c.code)?.length ?? 0) > 0,
@@ -237,59 +254,68 @@ function SectorPanel({
   const pct = covered / bloc.competences.length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.15 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-      className="border-2 border-red-600 bg-black/90 font-mono shadow-[0_0_40px_rgba(220,38,38,0.15)]"
-    >
-      <div className="flex items-center justify-between gap-3 border-b-2 border-red-600 bg-red-600 text-black px-3 py-1.5 text-[10px] sm:text-sm font-black tracking-widest uppercase">
-        <span className="shrink-0">
-          S{bloc.sector} — {bloc.code}
-        </span>
-        <span className="truncate text-right sm:text-center flex-1 normal-case sm:uppercase">
-          {bloc.title}
-        </span>
-        <span className="hidden md:inline shrink-0">
-          {covered}/{bloc.competences.length}
-        </span>
-      </div>
+    // Cible de `focusCompetence`. L'ancre est portée par un wrapper neutre : le
+    // motion.div se translate pendant son animation d'entrée, viser directement
+    // dessus donnerait une position de scroll mouvante.
+    <div id={blocAnchorId(bloc.code)} className="scroll-mt-20">
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.15 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="border-2 border-red-600 bg-black/90 font-mono shadow-[0_0_40px_rgba(220,38,38,0.15)]"
+      >
+        <div className="flex items-center justify-between gap-3 border-b-2 border-red-600 bg-red-600 text-black px-3 py-1.5 text-[10px] sm:text-sm font-black tracking-widest uppercase">
+          <span className="shrink-0">
+            S{bloc.sector} — {bloc.code}
+          </span>
+          <span className="truncate text-right sm:text-center flex-1 normal-case sm:uppercase">
+            {bloc.title}
+          </span>
+          <span className="hidden md:inline shrink-0">
+            {covered}/{bloc.competences.length}
+          </span>
+        </div>
 
-      <div className="flex items-center gap-4 px-3 md:px-4 py-3 border-b border-red-600/20">
-        <CoverageRing pct={pct} />
-        <div className="min-w-0">
-          <div className="text-[9px] tracking-[0.3em] text-neutral-500 mb-1">
-            COUVERTURE SECTEUR
-          </div>
-          <div className="text-xs md:text-sm text-neutral-300">
-            <span className="text-white font-black">{covered}</span>
-            <span className="text-neutral-500">
-              {" "}
-              / {bloc.competences.length} compétences adossées à un projet
-            </span>
+        <div className="flex items-center gap-4 px-3 md:px-4 py-3 border-b border-red-600/20">
+          <CoverageRing pct={pct} />
+          <div className="min-w-0">
+            <div className="text-[9px] tracking-[0.3em] text-neutral-500 mb-1">
+              COUVERTURE SECTEUR
+            </div>
+            <div className="text-xs md:text-sm text-neutral-300">
+              <span className="text-white font-black">{covered}</span>
+              <span className="text-neutral-500">
+                {" "}
+                / {bloc.competences.length} compétences adossées à un projet
+              </span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div>
-        {bloc.competences.map((c) => (
-          <CompetenceRow
-            key={c.code}
-            competence={c}
-            preuves={preuvesIndex.get(c.code) ?? []}
-            isOpen={openCode === c.code}
-            onToggle={() => onToggleCode(c.code)}
-          />
-        ))}
-      </div>
-    </motion.div>
+        <div>
+          {bloc.competences.map((c) => (
+            <CompetenceRow
+              key={c.code}
+              competence={c}
+              preuves={preuvesIndex.get(c.code) ?? []}
+              isOpen={openCode === c.code}
+              onToggle={() => onToggleCode(c.code)}
+              onOpenProject={onOpenProject}
+            />
+          ))}
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
 export default function Competences() {
   const [projects, setProjects] = useState<ProjectLite[]>([]);
-  const [openCode, setOpenCode] = useState<string | null>(null);
+  // Ouverture pilotée par le contexte : une compétence cliquée depuis une
+  // modale projet doit pouvoir déplier la bonne ligne d'ici.
+  const { openCompetence, toggleCompetence, focusProject } =
+    usePortfolioFocus();
 
   useEffect(() => {
     let cancelled = false;
@@ -405,10 +431,9 @@ export default function Competences() {
               key={bloc.code}
               bloc={bloc}
               preuvesIndex={preuvesIndex}
-              openCode={openCode}
-              onToggleCode={(code) =>
-                setOpenCode((current) => (current === code ? null : code))
-              }
+              openCode={openCompetence}
+              onToggleCode={toggleCompetence}
+              onOpenProject={focusProject}
             />
           ))}
         </div>

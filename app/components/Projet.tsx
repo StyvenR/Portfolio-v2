@@ -6,6 +6,7 @@ import {
   ModalBody,
   ModalContent,
   ModalTrigger,
+  useModal,
 } from "@/components/ui/shadcn-io/animated-modal";
 import { useCheckerboardColumns } from "@/hooks/useCheckerboardColumns";
 import { useIsInViewport } from "@/hooks/useIsInViewport";
@@ -21,6 +22,11 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { motion, useScroll, useTransform } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import {
+  projectAnchorId,
+  scrollToAnchor,
+  usePortfolioFocus,
+} from "./portfolio-focus";
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(false);
@@ -31,6 +37,44 @@ function useIsMobile(breakpoint = 768) {
     return () => window.removeEventListener("resize", check);
   }, [breakpoint]);
   return isMobile;
+}
+
+/**
+ * Ouvre la modale du projet ciblé par la section Compétences et amène sa
+ * section sous le viewport. Le déplacement est instantané : la modale
+ * recouvre l'écran, animer un scroll invisible ne ferait qu'ajouter un délai.
+ */
+function ProjectFocusSync({ projectId }: { projectId: string }) {
+  const { setOpen } = useModal();
+  const { projectRequest } = usePortfolioFocus();
+
+  useEffect(() => {
+    if (projectRequest?.target !== projectId) return;
+    scrollToAnchor(projectAnchorId(projectId), "auto");
+    setOpen(true);
+  }, [projectRequest, projectId, setOpen]);
+
+  return null;
+}
+
+/** Renvoie vers la compétence dans le référentiel, modale refermée. */
+function CompetenceLink({ code }: { code: string }) {
+  const { setOpen } = useModal();
+  const { focusCompetence } = usePortfolioFocus();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setOpen(false);
+        focusCompetence(code);
+      }}
+      title={COMPETENCES_BY_CODE[code]?.label}
+      className="px-2 py-0.5 border border-green-600/60 text-green-400 hover:bg-green-600 hover:text-black text-[10px] sm:text-xs tracking-wide uppercase transition-colors cursor-pointer"
+    >
+      {code}
+    </button>
+  );
 }
 
 function PitBoard({
@@ -57,7 +101,9 @@ function PitBoard({
 
   return (
     <Modal>
+      <ProjectFocusSync projectId={String(project.id)} />
       <section
+        id={projectAnchorId(String(project.id))}
         data-project-section
         className="h-screen snap-start flex justify-center items-center relative overflow-hidden bg-black"
       >
@@ -330,14 +376,7 @@ function PitBoard({
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {project.competences.map(({ code }) => (
-                        <a
-                          key={code}
-                          href="#competences"
-                          title={COMPETENCES_BY_CODE[code]?.label}
-                          className="px-2 py-0.5 border border-green-600/60 text-green-400 hover:bg-green-600 hover:text-black text-[10px] sm:text-xs tracking-wide uppercase transition-colors"
-                        >
-                          {code}
-                        </a>
+                        <CompetenceLink key={code} code={code} />
                       ))}
                     </div>
                   </div>
@@ -490,6 +529,7 @@ function FinishLine() {
 export default function Project() {
   const containerRef = useRef<HTMLDivElement>(null);
   const isInZone = useIsInViewport(containerRef);
+  const { isFocusScrolling } = usePortfolioFocus();
 
   const [projects, setProjects] = useState<Project[]>(fallbackProjects);
 
@@ -504,9 +544,11 @@ export default function Project() {
   } = useSectionNav(containerRef, projects);
 
   useScrollSnap(containerRef, {
-    enabled: isInZone && !isNavigating,
+    // Un départ vers les compétences traverse la zone : snapper le
+    // rattraperait au vol et annulerait le déplacement.
+    enabled: isInZone && !isNavigating && !isFocusScrolling,
     threshold: 50,
-    cooldown: 600,
+    duration: 600,
   });
 
   useEffect(() => {
