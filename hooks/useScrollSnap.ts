@@ -4,183 +4,317 @@ import { type RefObject, useEffect, useRef } from "react";
 
 export interface ScrollSnapOptions {
   enabled: boolean;
+  /** Ecart en px tolere avant de recadrer une section apres un scroll libre. */
   threshold?: number;
-  cooldown?: number;
+  /** Duree max de l'animation de snap, en ms. */
+  duration?: number;
+}
+
+/** Marge morte : en dessous, une frontiere est consideree deja atteinte. */
+const BOUNDARY_EPSILON = 8;
+
+/** Deux `wheel` espaces de plus de ce delai ouvrent un nouveau geste. */
+const BURST_GAP_MS = 120;
+
+/** Silence apres lequel un geste trackpad (inertie comprise) est termine. */
+const TRACKPAD_SETTLE_MS = 140;
+
+type Device = "mouse" | "trackpad";
+
+/**
+ * Distingue un cran de molette d'un geste trackpad.
+ *
+ * - Firefox rapporte la molette en lignes (`deltaMode` 1), le trackpad en px.
+ * - Chromium/WebKit exposent `wheelDeltaY` : multiple exact de 120 pour un
+ *   cran de molette, `-deltaY * 3` (donc quelconque) pour un trackpad.
+ */
+function detectDevice(event: WheelEvent): Device {
+  if (event.deltaMode !== 0) return "mouse";
+
+  const legacy = (event as WheelEvent & { wheelDeltaY?: number }).wheelDeltaY;
+  if (typeof legacy === "number") {
+    const abs = Math.abs(legacy);
+    return abs >= 120 && abs % 120 === 0 ? "mouse" : "trackpad";
+  }
+
+  return Math.abs(event.deltaY) >= 50 ? "mouse" : "trackpad";
 }
 
 /**
  * Gere le scroll snap manuel sur les sections enfants d'un container.
- * - Intercepte le wheel pour snapper a la section la plus proche
+ *
+ * Molette et trackpad ne produisent pas le meme signal : la molette envoie un
+ * evenement isole par cran, le trackpad un flux continu suivi d'inertie. Les
+ * traiter pareil rendait la molette inutilisable (un cran avancait de ~100px,
+ * le recadrage le ramenait aussitot en arriere). Chaque peripherique a donc
+ * son propre mode :
+ * - molette : un cran = un projet, deplacement pilote par le hook ;
+ * - trackpad : scroll natif libre, recadrage a l'arret du geste.
  */
 export function useScrollSnap(
   containerRef: RefObject<HTMLElement | null>,
   options: ScrollSnapOptions,
 ): void {
-  const { enabled, threshold = 50, cooldown = 600 } = options;
+  const { enabled, threshold = 50, duration: maxDuration = 600 } = options;
 
-  const isScrollingRef = useRef(false);
-  const lastScrollTimeRef = useRef(0);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const scrollEndTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const animationRef = useRef<number | null>(null);
+  const targetIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!enabled || !container) return;
 
-    const sections = Array.from(
-      container.querySelectorAll("section"),
-    ) as HTMLElement[];
+    // Les projets arrivent d'un fetch : la liste est relue a chaque geste
+    // plutot que capturee au montage, sinon elle est perimee des l'arrivee
+    // des donnees.
+    const getSections = () =>
+      Array.from(container.querySelectorAll("section")) as HTMLElement[];
 
-    if (sections.length === 0) return;
+    const documentTop = (section: HTMLElement) =>
+      section.getBoundingClientRect().top + window.scrollY;
 
-    const isInProjectsZone = (): boolean => {
-      if (!container) return false;
-      const containerRect = container.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      return containerRect.top < viewportHeight && containerRect.bottom > 0;
+    const isInProjectsZone = () => {
+      const rect = container.getBoundingClientRect();
+      return rect.top < window.innerHeight && rect.bottom > 0;
     };
 
-    // --- Trouver la section la plus proche ---
-    const findClosestSection = (): {
-      section: HTMLElement;
-      distance: number;
-    } | null => {
-      let closest: HTMLElement | null = null;
-      let closestDist = Infinity;
+    /** Direction du dernier geste : -1 vers le haut, 1 vers le bas. */
+    let direction: 1 | -1 = 1;
 
-      for (const section of sections) {
-        const dist = Math.abs(section.getBoundingClientRect().top);
-        if (dist < closestDist) {
-          closestDist = dist;
-          closest = section;
-        }
+    // --- Animation maison -------------------------------------------------
+    // `scrollTo({ behavior: "smooth" })` ne dit pas quand il a fini ni ou il
+    // va : impossible d'enchainer un second cran en vol. On pilote donc le
+    // deplacement nous-memes.
+
+    const stopAnimation = () => {
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
-
-      return closest ? { section: closest, distance: closestDist } : null;
+      targetIndexRef.current = null;
     };
 
-    // --- Suivre la direction du scroll pour laisser sortir de la zone ---
-    let lastScrollY = window.scrollY;
-    let scrollDirection: "up" | "down" = "down";
-
-    const trackDirection = () => {
-      const y = window.scrollY;
-      if (y !== lastScrollY) {
-        scrollDirection = y < lastScrollY ? "up" : "down";
-        lastScrollY = y;
+    const animateTo = (top: number, index: number) => {
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
-    };
+      targetIndexRef.current = index;
 
-    // --- Verifier si on doit ignorer le snap (sortie de zone par le haut ou le bas) ---
-    const shouldSkipSnap = (section: HTMLElement): boolean => {
-      const rect = section.getBoundingClientRect();
-      const isLastSection = section === sections[sections.length - 1];
-      if (isLastSection && rect.top < -150) return true;
-      // En remontant au-dessus de la premiere section, snapper la rejouerait
-      // vers le bas : on laisse l'utilisateur quitter la zone.
-      const isFirstSection = section === sections[0];
-      return isFirstSection && rect.top > 0 && scrollDirection === "up";
-    };
+      const maxScroll =
+        document.documentElement.scrollHeight - window.innerHeight;
+      const from = window.scrollY;
+      const to = Math.max(0, Math.min(top, maxScroll));
+      const distance = to - from;
 
-    // --- Snapper vers une section ---
-    const snapToSection = (section: HTMLElement): void => {
-      isScrollingRef.current = true;
-      const targetTop = section.getBoundingClientRect().top + window.scrollY;
+      const reduced = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
 
-      window.scrollTo({ top: targetTop, behavior: "smooth" });
-
-      lastScrollTimeRef.current = Date.now();
-
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      scrollTimeoutRef.current = setTimeout(() => {
-        isScrollingRef.current = false;
-      }, cooldown);
-    };
-
-    // --- Wheel handler ---
-    let wheelTimeout: NodeJS.Timeout | null = null;
-    let isWheeling = false;
-
-    const handleWheel = (e: WheelEvent) => {
-      if (e.deltaY !== 0) {
-        scrollDirection = e.deltaY < 0 ? "up" : "down";
-      }
-      if (!isInProjectsZone()) return;
-
-      if (isScrollingRef.current) {
-        e.preventDefault();
+      if (reduced || Math.abs(distance) < 1) {
+        window.scrollTo(0, to);
+        stopAnimation();
         return;
       }
 
-      const now = Date.now();
+      // Proportionnelle a la distance pour qu'un petit recadrage ne traine
+      // pas autant qu'un saut de section entiere.
+      const span = Math.min(maxDuration, Math.max(260, Math.abs(distance) * 0.6));
+      const start = performance.now();
 
-      if (wheelTimeout) clearTimeout(wheelTimeout);
+      const step = (now: number) => {
+        const progress = Math.min(1, (now - start) / span);
+        const eased = 1 - (1 - progress) ** 3;
+        window.scrollTo(0, from + distance * eased);
 
-      isWheeling = true;
-      wheelTimeout = setTimeout(() => {
-        isWheeling = false;
-      }, 150);
-
-      setTimeout(() => {
-        if (isWheeling || isScrollingRef.current) return;
-        if (!isInProjectsZone()) return;
-
-        const result = findClosestSection();
-        if (!result) return;
-        if (shouldSkipSnap(result.section)) return;
-
-        if (result.distance > 100 && now - lastScrollTimeRef.current > 100) {
-          snapToSection(result.section);
+        if (progress < 1) {
+          animationRef.current = requestAnimationFrame(step);
+          return;
         }
-      }, 200);
+        stopAnimation();
+      };
+
+      animationRef.current = requestAnimationFrame(step);
     };
 
-    // --- ScrollEnd handler ---
-    const handleScrollEnd = () => {
-      if (!isInProjectsZone()) return;
-      if (isScrollingRef.current) return;
+    // --- Reperage des sections -------------------------------------------
 
-      const result = findClosestSection();
-      if (!result) return;
-      if (shouldSkipSnap(result.section)) return;
+    /** Section dont le haut est le plus proche du haut du viewport. */
+    const anchoredSection = (sections: HTMLElement[]) => {
+      let index = -1;
+      let distance = Infinity;
 
-      if (result.distance > threshold) {
-        snapToSection(result.section);
+      sections.forEach((section, i) => {
+        const gap = Math.abs(section.getBoundingClientRect().top);
+        if (gap < distance) {
+          distance = gap;
+          index = i;
+        }
+      });
+
+      return { index, distance };
+    };
+
+    /**
+     * Prochaine frontiere de section dans le sens du geste, ou `null` quand
+     * il n'y en a plus : le scroll natif reprend alors la main et laisse
+     * sortir de la zone projets.
+     */
+    const boundaryIndex = (
+      sections: HTMLElement[],
+      way: 1 | -1,
+    ): number | null => {
+      if (way === 1) {
+        const index = sections.findIndex(
+          (section) => section.getBoundingClientRect().top > BOUNDARY_EPSILON,
+        );
+        return index === -1 ? null : index;
       }
+
+      for (let index = sections.length - 1; index >= 0; index -= 1) {
+        const { top } = sections[index].getBoundingClientRect();
+        if (top < -BOUNDARY_EPSILON) return index;
+      }
+      return null;
     };
 
-    // --- Event listeners ---
-    if (!enabled) return;
+    /** Recadrer ici bloquerait la sortie de la zone : on laisse filer. */
+    const shouldSkipSnap = (sections: HTMLElement[], index: number) => {
+      const rect = sections[index].getBoundingClientRect();
+      if (index === sections.length - 1 && rect.top < -150) return true;
+      // Au-dessus du premier projet en remontant, snapper rejouerait vers le
+      // bas et retiendrait l'utilisateur dans la zone.
+      return index === 0 && rect.top > 0 && direction === -1;
+    };
 
-    window.addEventListener("wheel", handleWheel, { passive: false });
+    // --- Mode molette : un cran = un projet -------------------------------
+
+    const stepOneSection = (way: 1 | -1): boolean => {
+      const sections = getSections();
+      if (sections.length === 0) return false;
+
+      // Un cran pendant l'animation enchaine sur la section suivante au lieu
+      // d'etre avale : faire tourner la molette vite defile plusieurs projets.
+      const index =
+        targetIndexRef.current !== null
+          ? targetIndexRef.current + way
+          : boundaryIndex(sections, way);
+
+      if (index === null || index < 0 || index >= sections.length) return false;
+
+      animateTo(documentTop(sections[index]), index);
+      return true;
+    };
+
+    // --- Mode trackpad : recadrage a l'arret ------------------------------
+
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const settle = () => {
+      if (animationRef.current !== null) return;
+      if (!isInProjectsZone()) return;
+
+      const sections = getSections();
+      const { index, distance } = anchoredSection(sections);
+      if (index === -1 || distance <= threshold) return;
+      if (shouldSkipSnap(sections, index)) return;
+
+      animateTo(documentTop(sections[index]), index);
+    };
+
+    const scheduleSettle = () => {
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(settle, TRACKPAD_SETTLE_MS);
+    };
+
+    // --- Garde : un scroller interne garde la main ------------------------
+
+    const scrollsInside = (target: EventTarget | null, delta: number) => {
+      let node: Node | null = target instanceof Node ? target : null;
+
+      while (node && node !== container) {
+        if (node instanceof HTMLElement) {
+          const { overflowY } = getComputedStyle(node);
+          const scrollable =
+            /(auto|scroll|overlay)/.test(overflowY) &&
+            node.scrollHeight > node.clientHeight + 1;
+
+          if (scrollable) {
+            const atTop = node.scrollTop <= 0;
+            const atBottom =
+              node.scrollTop + node.clientHeight >= node.scrollHeight - 1;
+            if (!(delta < 0 && atTop) && !(delta > 0 && atBottom)) return true;
+          }
+        }
+        node = node.parentNode;
+      }
+      return false;
+    };
+
+    // --- Handlers ---------------------------------------------------------
+
+    let device: Device = "trackpad";
+    let lastWheelAt = 0;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (event.ctrlKey) return; // zoom au pincement
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      if (!isInProjectsZone()) return;
+      // Scroll verrouille (modale projet ouverte) : rien a snapper.
+      if (getComputedStyle(document.body).overflowY === "hidden") return;
+      if (scrollsInside(event.target, event.deltaY)) return;
+
+      direction = event.deltaY < 0 ? -1 : 1;
+
+      const now = performance.now();
+      // La classification est figee pour toute la duree du geste : un trackpad
+      // accelere finit par produire des deltas qui ressemblent a des crans.
+      if (now - lastWheelAt > BURST_GAP_MS) device = detectDevice(event);
+      lastWheelAt = now;
+
+      if (device === "mouse") {
+        // Sans preventDefault, le scroll natif du cran s'ajoute a l'animation
+        // et la fait deraper.
+        if (stepOneSection(direction)) event.preventDefault();
+        return;
+      }
+
+      stopAnimation();
+      scheduleSettle();
+    };
+
+    // Rattrape les scrolls qui ne passent pas par la molette : barre de
+    // defilement, clavier, ancres.
+    const handleScrollEnd = () => {
+      if (performance.now() - lastWheelAt < TRACKPAD_SETTLE_MS) return;
+      settle();
+    };
+
+    const hasScrollEnd = "onscrollend" in window;
+    let scrollEndFallback: ReturnType<typeof setTimeout> | null = null;
 
     const handleScroll = () => {
-      trackDirection();
-      if (scrollEndTimerRef.current) {
-        clearTimeout(scrollEndTimerRef.current);
-      }
-      scrollEndTimerRef.current = setTimeout(handleScrollEnd, 150);
+      if (scrollEndFallback) clearTimeout(scrollEndFallback);
+      scrollEndFallback = setTimeout(handleScrollEnd, 150);
     };
 
-    const hasScrollEnd =
-      typeof window !== "undefined" && "onscrollend" in window;
-
+    window.addEventListener("wheel", handleWheel, { passive: false });
     if (hasScrollEnd) {
       window.addEventListener("scrollend", handleScrollEnd);
+    } else {
+      window.addEventListener("scroll", handleScroll, { passive: true });
     }
-    window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
       window.removeEventListener("wheel", handleWheel);
       if (hasScrollEnd) {
         window.removeEventListener("scrollend", handleScrollEnd);
+      } else {
+        window.removeEventListener("scroll", handleScroll);
       }
-      window.removeEventListener("scroll", handleScroll);
-      if (scrollEndTimerRef.current) clearTimeout(scrollEndTimerRef.current);
-      if (wheelTimeout) clearTimeout(wheelTimeout);
-      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      if (settleTimer) clearTimeout(settleTimer);
+      if (scrollEndFallback) clearTimeout(scrollEndFallback);
+      stopAnimation();
     };
-  }, [containerRef, enabled, threshold, cooldown]);
+  }, [containerRef, enabled, threshold, maxDuration]);
 }

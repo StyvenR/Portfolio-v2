@@ -9,7 +9,11 @@ import {
 } from "@/utils/competences";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
-import { competenceAnchorId, usePortfolioFocus } from "./portfolio-focus";
+import {
+  blocAnchorId,
+  competenceAnchorId,
+  usePortfolioFocus,
+} from "./portfolio-focus";
 
 interface ProjectLite {
   id: string;
@@ -174,7 +178,11 @@ function CompetenceRow({
             transition={{ duration: 0.25, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <div className="px-3 md:px-4 pb-5 pt-1 grid gap-5 md:grid-cols-2 bg-black/40">
+            {/* Un briefing long étirait la carte secteur sur plus d'un écran
+                et repoussait les compétences suivantes hors de vue. À partir
+                de md le panneau est plafonné et le débordement scrolle sur
+                place ; en dessous, le flux naturel reste plus lisible. */}
+            <div className="px-3 md:px-4 pb-5 pt-1 grid gap-5 md:grid-cols-2 bg-black/40 md:max-h-[min(20rem,50vh)] md:overflow-y-auto md:[scrollbar-width:thin] md:[scrollbar-color:var(--color-red-600)_transparent]">
               <div>
                 <div className="text-[10px] text-red-500 tracking-[0.3em] mb-2">
                   {`// BRIEFING ${activite.code}`}
@@ -246,54 +254,59 @@ function SectorPanel({
   const pct = covered / bloc.competences.length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.15 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-      className="border-2 border-red-600 bg-black/90 font-mono shadow-[0_0_40px_rgba(220,38,38,0.15)]"
-    >
-      <div className="flex items-center justify-between gap-3 border-b-2 border-red-600 bg-red-600 text-black px-3 py-1.5 text-[10px] sm:text-sm font-black tracking-widest uppercase">
-        <span className="shrink-0">
-          S{bloc.sector} — {bloc.code}
-        </span>
-        <span className="truncate text-right sm:text-center flex-1 normal-case sm:uppercase">
-          {bloc.title}
-        </span>
-        <span className="hidden md:inline shrink-0">
-          {covered}/{bloc.competences.length}
-        </span>
-      </div>
+    // Cible de `focusCompetence`. L'ancre est portée par un wrapper neutre : le
+    // motion.div se translate pendant son animation d'entrée, viser directement
+    // dessus donnerait une position de scroll mouvante.
+    <div id={blocAnchorId(bloc.code)} className="scroll-mt-20">
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.15 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="border-2 border-red-600 bg-black/90 font-mono shadow-[0_0_40px_rgba(220,38,38,0.15)]"
+      >
+        <div className="flex items-center justify-between gap-3 border-b-2 border-red-600 bg-red-600 text-black px-3 py-1.5 text-[10px] sm:text-sm font-black tracking-widest uppercase">
+          <span className="shrink-0">
+            S{bloc.sector} — {bloc.code}
+          </span>
+          <span className="truncate text-right sm:text-center flex-1 normal-case sm:uppercase">
+            {bloc.title}
+          </span>
+          <span className="hidden md:inline shrink-0">
+            {covered}/{bloc.competences.length}
+          </span>
+        </div>
 
-      <div className="flex items-center gap-4 px-3 md:px-4 py-3 border-b border-red-600/20">
-        <CoverageRing pct={pct} />
-        <div className="min-w-0">
-          <div className="text-[9px] tracking-[0.3em] text-neutral-500 mb-1">
-            COUVERTURE SECTEUR
-          </div>
-          <div className="text-xs md:text-sm text-neutral-300">
-            <span className="text-white font-black">{covered}</span>
-            <span className="text-neutral-500">
-              {" "}
-              / {bloc.competences.length} compétences adossées à un projet
-            </span>
+        <div className="flex items-center gap-4 px-3 md:px-4 py-3 border-b border-red-600/20">
+          <CoverageRing pct={pct} />
+          <div className="min-w-0">
+            <div className="text-[9px] tracking-[0.3em] text-neutral-500 mb-1">
+              COUVERTURE SECTEUR
+            </div>
+            <div className="text-xs md:text-sm text-neutral-300">
+              <span className="text-white font-black">{covered}</span>
+              <span className="text-neutral-500">
+                {" "}
+                / {bloc.competences.length} compétences adossées à un projet
+              </span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div>
-        {bloc.competences.map((c) => (
-          <CompetenceRow
-            key={c.code}
-            competence={c}
-            preuves={preuvesIndex.get(c.code) ?? []}
-            isOpen={openCode === c.code}
-            onToggle={() => onToggleCode(c.code)}
-            onOpenProject={onOpenProject}
-          />
-        ))}
-      </div>
-    </motion.div>
+        <div>
+          {bloc.competences.map((c) => (
+            <CompetenceRow
+              key={c.code}
+              competence={c}
+              preuves={preuvesIndex.get(c.code) ?? []}
+              isOpen={openCode === c.code}
+              onToggle={() => onToggleCode(c.code)}
+              onOpenProject={onOpenProject}
+            />
+          ))}
+        </div>
+      </motion.div>
+    </div>
   );
 }
 

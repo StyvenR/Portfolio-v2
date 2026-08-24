@@ -548,7 +548,7 @@ export default function Project() {
     // rattraperait au vol et annulerait le déplacement.
     enabled: isInZone && !isNavigating && !isFocusScrolling,
     threshold: 50,
-    cooldown: 600,
+    duration: 600,
   });
 
   useEffect(() => {
