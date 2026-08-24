@@ -4,52 +4,40 @@ import { type RefObject, useEffect, useRef } from "react";
 
 export interface ScrollSnapOptions {
   enabled: boolean;
-  /** Ecart en px tolere avant de recadrer une section apres un scroll libre. */
+  /** Écart en px toléré avant de recadrer une section après un scroll libre. */
   threshold?: number;
-  /** Duree max de l'animation de snap, en ms. */
+  /** Durée max de l'animation de snap, en ms. */
   duration?: number;
 }
 
-/** Marge morte : en dessous, une frontiere est consideree deja atteinte. */
+/** Marge morte : en dessous, une frontière est considérée déjà atteinte. */
 const BOUNDARY_EPSILON = 8;
 
-/** Deux `wheel` espaces de plus de ce delai ouvrent un nouveau geste. */
+/** Deux `wheel` espacés de plus de ce délai ouvrent un nouveau geste. */
 const BURST_GAP_MS = 120;
 
-/** Silence apres lequel un geste trackpad (inertie comprise) est termine. */
-const TRACKPAD_SETTLE_MS = 140;
-
-type Device = "mouse" | "trackpad";
+/** Silence après lequel un geste (inertie comprise) est terminé. */
+const SETTLE_MS = 140;
 
 /**
- * Distingue un cran de molette d'un geste trackpad.
+ * Déplacement minimal, en px, pour qu'un geste resté dans sa section compte
+ * comme une intention d'avancer.
  *
- * - Firefox rapporte la molette en lignes (`deltaMode` 1), le trackpad en px.
- * - Chromium/WebKit exposent `wheelDeltaY` : multiple exact de 120 pour un
- *   cran de molette, `-deltaY * 3` (donc quelconque) pour un trackpad.
+ * C'est le seul réglage qui arbitre entre les périphériques, et il est en
+ * pixels justement pour ne pas dépendre d'eux : un cran de molette vaut de 40
+ * à 120px selon l'OS et ses réglages d'accélération, le seuil passe donc sous
+ * le plus petit d'entre eux tout en restant au-dessus des micro-mouvements
+ * d'un trackpad.
  */
-function detectDevice(event: WheelEvent): Device {
-  if (event.deltaMode !== 0) return "mouse";
-
-  const legacy = (event as WheelEvent & { wheelDeltaY?: number }).wheelDeltaY;
-  if (typeof legacy === "number") {
-    const abs = Math.abs(legacy);
-    return abs >= 120 && abs % 120 === 0 ? "mouse" : "trackpad";
-  }
-
-  return Math.abs(event.deltaY) >= 50 ? "mouse" : "trackpad";
-}
+const ADVANCE_INTENT_PX = 40;
 
 /**
- * Gere le scroll snap manuel sur les sections enfants d'un container.
+ * Gère le scroll snap manuel sur les sections enfants d'un container.
  *
- * Molette et trackpad ne produisent pas le meme signal : la molette envoie un
- * evenement isole par cran, le trackpad un flux continu suivi d'inertie. Les
- * traiter pareil rendait la molette inutilisable (un cran avancait de ~100px,
- * le recadrage le ramenait aussitot en arriere). Chaque peripherique a donc
- * son propre mode :
- * - molette : un cran = un projet, deplacement pilote par le hook ;
- * - trackpad : scroll natif libre, recadrage a l'arret du geste.
+ * Le scroll natif reste libre pendant le geste ; le recadrage n'intervient
+ * qu'à l'arrêt, inertie comprise. Aucune distinction molette / trackpad n'est
+ * faite : la décision se prend sur la distance parcourue, la seule grandeur
+ * qui veuille dire la même chose d'un périphérique et d'un OS à l'autre.
  */
 export function useScrollSnap(
   containerRef: RefObject<HTMLElement | null>,
@@ -58,15 +46,14 @@ export function useScrollSnap(
   const { enabled, threshold = 50, duration: maxDuration = 600 } = options;
 
   const animationRef = useRef<number | null>(null);
-  const targetIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!enabled || !container) return;
 
-    // Les projets arrivent d'un fetch : la liste est relue a chaque geste
-    // plutot que capturee au montage, sinon elle est perimee des l'arrivee
-    // des donnees.
+    // Les projets arrivent d'un fetch : la liste est relue à chaque geste
+    // plutôt que capturée au montage, sinon elle est périmée dès l'arrivée
+    // des données.
     const getSections = () =>
       Array.from(container.querySelectorAll("section")) as HTMLElement[];
 
@@ -78,28 +65,19 @@ export function useScrollSnap(
       return rect.top < window.innerHeight && rect.bottom > 0;
     };
 
-    /** Direction du dernier geste : -1 vers le haut, 1 vers le bas. */
-    let direction: 1 | -1 = 1;
-
     // --- Animation maison -------------------------------------------------
-    // `scrollTo({ behavior: "smooth" })` ne dit pas quand il a fini ni ou il
-    // va : impossible d'enchainer un second cran en vol. On pilote donc le
-    // deplacement nous-memes.
+    // `scrollTo({ behavior: "smooth" })` ne dit pas quand il a fini : impossible
+    // de savoir si un geste arrive pendant ou après. On pilote nous-mêmes.
 
     const stopAnimation = () => {
       if (animationRef.current !== null) {
         cancelAnimationFrame(animationRef.current);
         animationRef.current = null;
       }
-      targetIndexRef.current = null;
     };
 
-    const animateTo = (top: number, index: number) => {
-      if (animationRef.current !== null) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-      }
-      targetIndexRef.current = index;
+    const animateTo = (top: number) => {
+      stopAnimation();
 
       const maxScroll =
         document.documentElement.scrollHeight - window.innerHeight;
@@ -113,13 +91,15 @@ export function useScrollSnap(
 
       if (reduced || Math.abs(distance) < 1) {
         window.scrollTo(0, to);
-        stopAnimation();
         return;
       }
 
-      // Proportionnelle a la distance pour qu'un petit recadrage ne traine
-      // pas autant qu'un saut de section entiere.
-      const span = Math.min(maxDuration, Math.max(260, Math.abs(distance) * 0.6));
+      // Proportionnelle à la distance : un recadrage de 80px ne doit pas durer
+      // aussi longtemps qu'un saut de section entière.
+      const span = Math.min(
+        maxDuration,
+        Math.max(240, Math.abs(distance) * 0.5),
+      );
       const start = performance.now();
 
       const step = (now: number) => {
@@ -131,13 +111,13 @@ export function useScrollSnap(
           animationRef.current = requestAnimationFrame(step);
           return;
         }
-        stopAnimation();
+        animationRef.current = null;
       };
 
       animationRef.current = requestAnimationFrame(step);
     };
 
-    // --- Reperage des sections -------------------------------------------
+    // --- Repérage des sections -------------------------------------------
 
     /** Section dont le haut est le plus proche du haut du viewport. */
     const anchoredSection = (sections: HTMLElement[]) => {
@@ -156,9 +136,9 @@ export function useScrollSnap(
     };
 
     /**
-     * Prochaine frontiere de section dans le sens du geste, ou `null` quand
-     * il n'y en a plus : le scroll natif reprend alors la main et laisse
-     * sortir de la zone projets.
+     * Prochaine frontière de section dans le sens du geste, ou `null` quand il
+     * n'y en a plus : le scroll natif garde alors la main et laisse sortir de
+     * la zone projets.
      */
     const boundaryIndex = (
       sections: HTMLElement[],
@@ -172,59 +152,71 @@ export function useScrollSnap(
       }
 
       for (let index = sections.length - 1; index >= 0; index -= 1) {
-        const { top } = sections[index].getBoundingClientRect();
-        if (top < -BOUNDARY_EPSILON) return index;
+        if (sections[index].getBoundingClientRect().top < -BOUNDARY_EPSILON) {
+          return index;
+        }
       }
       return null;
     };
 
-    /** Recadrer ici bloquerait la sortie de la zone : on laisse filer. */
-    const shouldSkipSnap = (sections: HTMLElement[], index: number) => {
+    /** Recadrer ici retiendrait l'utilisateur dans la zone : on laisse filer. */
+    const shouldSkipSnap = (
+      sections: HTMLElement[],
+      index: number,
+      way: 1 | -1,
+    ) => {
       const rect = sections[index].getBoundingClientRect();
       if (index === sections.length - 1 && rect.top < -150) return true;
-      // Au-dessus du premier projet en remontant, snapper rejouerait vers le
-      // bas et retiendrait l'utilisateur dans la zone.
-      return index === 0 && rect.top > 0 && direction === -1;
+      return index === 0 && rect.top > 0 && way === -1;
     };
 
-    // --- Mode molette : un cran = un projet -------------------------------
+    // --- Geste en cours ---------------------------------------------------
 
-    const stepOneSection = (way: 1 | -1): boolean => {
-      const sections = getSections();
-      if (sections.length === 0) return false;
-
-      // Un cran pendant l'animation enchaine sur la section suivante au lieu
-      // d'etre avale : faire tourner la molette vite defile plusieurs projets.
-      const index =
-        targetIndexRef.current !== null
-          ? targetIndexRef.current + way
-          : boundaryIndex(sections, way);
-
-      if (index === null || index < 0 || index >= sections.length) return false;
-
-      animateTo(documentTop(sections[index]), index);
-      return true;
-    };
-
-    // --- Mode trackpad : recadrage a l'arret ------------------------------
-
+    let lastWheelAt = 0;
+    let lastDirection: 1 | -1 = 1;
+    let gestureStartY = 0;
+    let gestureStartIndex = -1;
     let settleTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const settle = () => {
+    const settle = (fromGesture: boolean) => {
       if (animationRef.current !== null) return;
       if (!isInProjectsZone()) return;
 
       const sections = getSections();
-      const { index, distance } = anchoredSection(sections);
-      if (index === -1 || distance <= threshold) return;
-      if (shouldSkipSnap(sections, index)) return;
+      if (sections.length === 0) return;
 
-      animateTo(documentTop(sections[index]), index);
+      const nearest = anchoredSection(sections);
+      if (nearest.index === -1) return;
+
+      const travel = window.scrollY - gestureStartY;
+      const way: 1 | -1 =
+        travel === 0 ? lastDirection : travel > 0 ? 1 : -1;
+
+      // Le geste n'a pas quitté sa section de départ. Au-delà du seuil
+      // d'intention on avance plutôt que de revenir en arrière : sans ça un
+      // cran de molette (~100px) se faisait ramener à son point de départ,
+      // là où un flick de trackpad (~800px) changeait bien de section. C'est
+      // cet écart qui rendait le ressenti dépendant du périphérique.
+      const stalled = fromGesture && nearest.index === gestureStartIndex;
+
+      let index = nearest.index;
+
+      if (stalled && Math.abs(travel) >= ADVANCE_INTENT_PX) {
+        const next = boundaryIndex(sections, way);
+        if (next === null) return;
+        index = next;
+      } else if (nearest.distance <= threshold) {
+        return;
+      }
+
+      if (shouldSkipSnap(sections, index, way)) return;
+
+      animateTo(documentTop(sections[index]));
     };
 
-    const scheduleSettle = () => {
+    const scheduleSettle = (fromGesture: boolean) => {
       if (settleTimer) clearTimeout(settleTimer);
-      settleTimer = setTimeout(settle, TRACKPAD_SETTLE_MS);
+      settleTimer = setTimeout(() => settle(fromGesture), SETTLE_MS);
     };
 
     // --- Garde : un scroller interne garde la main ------------------------
@@ -253,41 +245,34 @@ export function useScrollSnap(
 
     // --- Handlers ---------------------------------------------------------
 
-    let device: Device = "trackpad";
-    let lastWheelAt = 0;
-
     const handleWheel = (event: WheelEvent) => {
       if (event.ctrlKey) return; // zoom au pincement
       if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
       if (!isInProjectsZone()) return;
-      // Scroll verrouille (modale projet ouverte) : rien a snapper.
+      // Scroll verrouillé (modale projet ouverte) : rien à recadrer.
       if (getComputedStyle(document.body).overflowY === "hidden") return;
       if (scrollsInside(event.target, event.deltaY)) return;
 
-      direction = event.deltaY < 0 ? -1 : 1;
+      lastDirection = event.deltaY < 0 ? -1 : 1;
 
       const now = performance.now();
-      // La classification est figee pour toute la duree du geste : un trackpad
-      // accelere finit par produire des deltas qui ressemblent a des crans.
-      if (now - lastWheelAt > BURST_GAP_MS) device = detectDevice(event);
+      if (now - lastWheelAt > BURST_GAP_MS) {
+        // `wheel` précède l'application du scroll : on lit bien la position
+        // d'avant le geste.
+        gestureStartY = window.scrollY;
+        gestureStartIndex = anchoredSection(getSections()).index;
+      }
       lastWheelAt = now;
 
-      if (device === "mouse") {
-        // Sans preventDefault, le scroll natif du cran s'ajoute a l'animation
-        // et la fait deraper.
-        if (stepOneSection(direction)) event.preventDefault();
-        return;
-      }
-
       stopAnimation();
-      scheduleSettle();
+      scheduleSettle(true);
     };
 
     // Rattrape les scrolls qui ne passent pas par la molette : barre de
-    // defilement, clavier, ancres.
+    // défilement, clavier, ancres. Pas de geste, donc pas de seuil d'intention.
     const handleScrollEnd = () => {
-      if (performance.now() - lastWheelAt < TRACKPAD_SETTLE_MS) return;
-      settle();
+      if (performance.now() - lastWheelAt < SETTLE_MS) return;
+      settle(false);
     };
 
     const hasScrollEnd = "onscrollend" in window;
@@ -298,7 +283,7 @@ export function useScrollSnap(
       scrollEndFallback = setTimeout(handleScrollEnd, 150);
     };
 
-    window.addEventListener("wheel", handleWheel, { passive: false });
+    window.addEventListener("wheel", handleWheel, { passive: true });
     if (hasScrollEnd) {
       window.addEventListener("scrollend", handleScrollEnd);
     } else {
