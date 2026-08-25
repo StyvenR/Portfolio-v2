@@ -122,7 +122,7 @@ function PitBoard({
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative z-10 w-[92vw] max-w-[1100px] border-2 border-red-600 bg-black/90 font-mono shadow-[0_0_20px_rgba(220,38,38,0.25)]"
+          className="group relative z-10 w-[92vw] max-w-[1100px] border-2 border-red-600 bg-black/90 font-mono shadow-[0_0_20px_rgba(220,38,38,0.25)] cursor-pointer transition-shadow hover:shadow-[0_0_30px_rgba(220,38,38,0.45)]"
         >
           {/* Header pit board */}
           <div className="flex items-center justify-between border-b-2 border-red-600 bg-red-600 text-black px-3 py-1.5 text-[11px] sm:text-sm font-black tracking-widest uppercase">
@@ -143,7 +143,7 @@ function PitBoard({
           {/* Body split */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
             {/* Image écran télémétrie */}
-            <ModalTrigger className="group relative block w-full aspect-4/3 md:aspect-auto md:h-[360px] overflow-hidden border-b-2 md:border-b-0 md:border-r-2 border-red-600 bg-neutral-900 cursor-pointer p-0">
+            <div className="relative w-full aspect-4/3 md:aspect-auto md:h-[360px] overflow-hidden border-b-2 md:border-b-0 md:border-r-2 border-red-600 bg-neutral-900">
               {/* coins style HUD */}
               <div className="absolute top-1 left-1 w-4 h-4 border-t-2 border-l-2 border-red-500 z-10" />
               <div className="absolute top-1 right-1 w-4 h-4 border-t-2 border-r-2 border-red-500 z-10" />
@@ -159,7 +159,7 @@ function PitBoard({
               <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/80 border border-red-600 text-[10px] text-red-500 tracking-widest z-10">
                 ONBOARD CAM
               </div>
-            </ModalTrigger>
+            </div>
 
             {/* Data panel */}
             <div className="p-4 md:p-6 flex flex-col gap-4 text-white">
@@ -280,10 +280,22 @@ function PitBoard({
 
               <div className="mt-auto flex items-center gap-2 pt-2 border-t border-red-600/30 text-[10px] tracking-widest text-neutral-500">
                 <span className="text-red-500">◉</span>
-                <span>TAP ONBOARD CAM → VIEW TEAM RADIO</span>
+                <span>TAP CARD → VIEW TEAM RADIO</span>
               </div>
             </div>
           </div>
+
+          {/* Toute la carte est le déclencheur : le bouton couvre header,
+              onboard cam et panneau data. Aucun autre élément interactif
+              ne vit dans la carte, l'overlay ne masque donc rien. */}
+          <ModalTrigger
+            className="absolute inset-0 z-20 h-full w-full p-0 cursor-pointer"
+            aria-label={`Ouvrir le détail du projet ${project.title}`}
+          >
+            <span className="sr-only">
+              Ouvrir le détail du projet {project.title}
+            </span>
+          </ModalTrigger>
         </motion.div>
 
         {/* Titre latéral décoratif (desktop) */}

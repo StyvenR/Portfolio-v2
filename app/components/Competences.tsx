@@ -206,22 +206,22 @@ function CompetenceRow({
                 ) : (
                   <ul className="space-y-2">
                     {preuves.map((p) => (
-                      <li
-                        key={p.projectId}
-                        className="border border-red-600/30 bg-neutral-950 px-3 py-2"
-                      >
+                      <li key={p.projectId}>
+                        {/* Toute la box est cliquable, titre comme preuve. */}
                         <button
                           type="button"
                           onClick={() => onOpenProject(p.projectId)}
-                          className="text-left text-xs md:text-sm font-black text-red-500 hover:text-red-400 transition-colors uppercase tracking-wide cursor-pointer"
+                          className="group block w-full text-left border border-red-600/30 hover:border-red-600/70 bg-neutral-950 hover:bg-neutral-900 px-3 py-2 transition-colors cursor-pointer"
                         >
-                          ◉ {p.title}
+                          <span className="block text-xs md:text-sm font-black text-red-500 group-hover:text-red-400 transition-colors uppercase tracking-wide">
+                            ◉ {p.title}
+                          </span>
+                          {p.evidence && (
+                            <span className="block text-[11px] md:text-xs text-neutral-400 mt-1 leading-relaxed">
+                              {p.evidence}
+                            </span>
+                          )}
                         </button>
-                        {p.evidence && (
-                          <p className="text-[11px] md:text-xs text-neutral-400 mt-1 leading-relaxed">
-                            {p.evidence}
-                          </p>
-                        )}
                       </li>
                     ))}
                   </ul>
